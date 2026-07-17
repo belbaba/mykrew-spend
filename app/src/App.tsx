@@ -84,9 +84,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
     <div className="min-h-screen flex items-center justify-center px-4 min-h-screen">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-[#863bff] hover:bg-[#7e14ff]">
-            <span className="text-3xl">��</span>
-          </div>
+          
           <img src="/logo.png" alt="MyKrew" className="h-10 mx-auto mb-2" /><h1 className="text-2xl font-bold text-gray-900">MyKrew Spend</h1>
           <p className="text-gray-400 text-sm mt-1">Gestion des notes de frais</p>
         </div>
