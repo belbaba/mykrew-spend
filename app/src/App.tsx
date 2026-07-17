@@ -87,7 +87,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-[#863bff] hover:bg-[#7e14ff]">
             <span className="text-3xl">��</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">MyKrew Spend</h1>
+          <img src="/logo.png" alt="MyKrew" className="h-10 mx-auto mb-2" /><h1 className="text-2xl font-bold text-gray-900">MyKrew Spend</h1>
           <p className="text-gray-400 text-sm mt-1">Gestion des notes de frais</p>
         </div>
 
@@ -236,7 +236,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Nouvelle depense</h2>
+        <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-6" /><h2 className="text-xl font-bold text-gray-900">Nouvelle depense</h2></div>
         <button onClick={onCancel} className="text-gray-400 hover:text-gray-900 text-sm">Annuler</button>
       </div>
 
