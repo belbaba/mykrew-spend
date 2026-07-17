@@ -3,8 +3,8 @@
   "short_name": "Spend",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#863bff",
+  "background_color": "#f0f1f5",
+  "theme_color": "#10b981",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
   ]

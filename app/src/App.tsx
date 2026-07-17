@@ -11,7 +11,7 @@ const STATUS_CONFIG: Record<ExpenseStatus, { label: string; color: string; bg: s
   pending: { label: 'En attente', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' },
   approved: { label: 'Approuvee', color: '#4ade80', bg: 'rgba(74,222,128,0.15)' },
   rejected: { label: 'Refusee', color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
-  reimbursed: { label: 'Remboursee', color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
+  reimbursed: { label: 'Remboursee', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
   cancelled: { label: 'Annulee', color: '#9ca3af', bg: 'rgba(156,163,175,0.15)' },
   self_approved: { label: 'Auto-approuvee', color: '#60a5fa', bg: 'rgba(96,165,250,0.15)' },
 }
@@ -96,7 +96,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none transition-colors"
               placeholder="votre@email.com"
               required
               autoComplete="email"
@@ -108,7 +108,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none transition-colors"
               placeholder="••••••••"
               required
               autoComplete="current-password"
@@ -122,7 +122,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50 bg-[#863bff] hover:bg-[#7e14ff]"
+            className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50 bg-emerald-500 hover:bg-emerald-600"
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
@@ -248,7 +248,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             min="0.01"
             value={amountTTC}
             onChange={e => setAmountTTC(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none"
             placeholder="0.00"
             required
           />
@@ -260,7 +260,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <select
             value={vatRate}
             onChange={e => setVatRate(parseFloat(e.target.value))}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none"
           >
             {VAT_RATES.map(r => (
               <option key={r.value} value={r.value}>{r.label}</option>
@@ -287,7 +287,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none"
             required
           />
         </div>
@@ -299,7 +299,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             type="text"
             value={location}
             onChange={e => setLocation(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none"
             placeholder="Restaurant, Gare, etc."
             required
           />
@@ -311,7 +311,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <select
             value={category}
             onChange={e => setCategory(e.target.value as ExpenseCategory)}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none"
           >
             {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
               <option key={key} value={key}>{CATEGORY_ICONS[key as ExpenseCategory]} {label}</option>
@@ -325,7 +325,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none resize-none"
+            className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none resize-none"
             rows={2}
             placeholder="Dejeuner equipe, Train Paris-Lyon..."
             required
@@ -339,7 +339,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             type="text"
             value={project}
             onChange={e => setProject(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-emerald-500 focus:outline-none"
             placeholder="Nom du projet"
           />
         </div>
@@ -358,7 +358,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#863bff] hover:text-[#863bff] transition-colors"
+            className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#10b981] hover:text-emerald-600 transition-colors"
           >
             📷 {photo ? 'Changer la photo' : 'Ajouter un justificatif'}
           </button>
@@ -383,7 +383,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50 bg-[#863bff] hover:bg-[#7e14ff]"
+          className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50 bg-emerald-500 hover:bg-emerald-600"
         >
           {submitting ? 'Envoi en cours...' : isManager ? 'Creer (auto-approuvee)' : 'Soumettre'}
         </button>
@@ -488,7 +488,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
       <div className="px-4">
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-8 h-8 border-4 border-[#863bff] border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="w-8 h-8 border-4 border-[#10b981] border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-gray-400 mt-3">Chargement...</p>
           </div>
         ) : expenses.length === 0 ? (
@@ -522,7 +522,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
                     {exp.receiptUrl && (
                       <button
                         onClick={() => setPhotoUrl(exp.receiptUrl!)}
-                        className="text-[#863bff] text-xs mt-1 hover:underline"
+                        className="text-emerald-600 text-xs mt-1 hover:underline"
                       >
                         📷 Voir
                       </button>
@@ -538,7 +538,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
       {/* FAB */}
       <button
         onClick={() => setShowForm(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-gray-900 text-2xl shadow-lg shadow-[#863bff]/30 active:scale-95 transition-transform bg-[#863bff] hover:bg-[#7e14ff]"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-gray-900 text-2xl shadow-lg shadow-emerald-500/30 active:scale-95 transition-transform bg-emerald-500 hover:bg-emerald-600"
       >
         +
       </button>
@@ -733,7 +733,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                 ? 'text-white'
                 : 'text-gray-700 hover:text-gray-900'
             }`}
-            style={activeTab === tab.key ? { backgroundColor: '#863bff' } : { backgroundColor: '#ffffff', border: '1px solid #e5e7eb' }}
+            style={activeTab === tab.key ? { backgroundColor: '#10b981' } : { backgroundColor: '#ffffff', border: '1px solid #e5e7eb' }}
           >
             {tab.label}
           </button>
@@ -742,7 +742,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-[#863bff] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-4 border-[#10b981] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 mt-3">Chargement...</p>
         </div>
       ) : (
@@ -786,7 +786,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                     <p className="text-sm text-gray-400">Dernieres en attente</p>
                     <button
                       onClick={() => setActiveTab('pending')}
-                      className="text-xs text-[#863bff] hover:underline"
+                      className="text-xs text-emerald-600 hover:underline"
                     >
                       Voir tout →
                     </button>
@@ -836,7 +836,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                         {exp.receiptUrl && (
                           <button
                             onClick={() => setPhotoUrl(exp.receiptUrl!)}
-                            className="text-[#863bff] text-xs mt-1 hover:underline"
+                            className="text-emerald-600 text-xs mt-1 hover:underline"
                           >
                             📷 Justificatif
                           </button>
@@ -900,7 +900,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                   <select
                     value={filterStatus}
                     onChange={e => setFilterStatus(e.target.value as ExpenseStatus | 'all')}
-                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-900 border border-gray-200 text-xs focus:border-[#863bff] focus:outline-none"
+                    className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-emerald-500 focus:outline-none"
                   >
                     <option value="all">Tous statuts</option>
                     <option value="pending">En attente</option>
@@ -912,7 +912,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                   <select
                     value={filterCategory}
                     onChange={e => setFilterCategory(e.target.value as ExpenseCategory | 'all')}
-                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-900 border border-gray-200 text-xs focus:border-[#863bff] focus:outline-none"
+                    className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-emerald-500 focus:outline-none"
                   >
                     <option value="all">Categories</option>
                     {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
@@ -923,14 +923,14 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                     type="month"
                     value={filterMonth}
                     onChange={e => setFilterMonth(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-900 border border-gray-200 text-xs focus:border-[#863bff] focus:outline-none"
+                    className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-400">{filteredExpenses.length} depense(s) • {filteredExpenses.reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR TTC</p>
                   <button
                     onClick={exportCSV}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-[#863bff] border border-[#863bff] hover:bg-[#863bff]/10"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-600 border border-[#10b981] hover:bg-emerald-500/10"
                   >
                     📥 Export CSV
                   </button>
@@ -964,7 +964,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                           {exp.receiptUrl && (
                             <button
                               onClick={() => setPhotoUrl(exp.receiptUrl!)}
-                              className="text-[#863bff] text-xs mt-1 hover:underline"
+                              className="text-emerald-600 text-xs mt-1 hover:underline"
                             >
                               📷
                             </button>
@@ -975,7 +975,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                       {exp.status === 'approved' && (
                         <button
                           onClick={() => handleReimburse(exp.id)}
-                          className="mt-3 w-full py-2 rounded-lg text-xs font-medium bg-[#863bff]/20 text-[#a78bfa] hover:bg-[#863bff]/30"
+                          className="mt-3 w-full py-2 rounded-lg text-xs font-medium bg-emerald-500/20 text-[#a78bfa] hover:bg-emerald-500/30"
                         >
                           💰 Marquer comme remboursee
                         </button>
@@ -1046,7 +1046,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-[#863bff] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border-4 border-[#10b981] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 mt-4 text-sm">Chargement...</p>
         </div>
       </div>
