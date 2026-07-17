@@ -30,7 +30,7 @@ function StatusBadge({ status }: { status: ExpenseStatus }) {
 
 function CategoryBadge({ category }: { category: ExpenseCategory }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-gray-300">
+    <span className="inline-flex items-center gap-1 text-xs text-gray-600">
       <span>{CATEGORY_ICONS[category]}</span>
       <span>{CATEGORY_LABELS[category]}</span>
     </span>
@@ -42,7 +42,7 @@ function PhotoModal({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
       <div className="relative max-w-full max-h-full" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-10 right-0 text-white text-2xl font-bold hover:text-gray-300">
+        <button onClick={onClose} className="absolute -top-10 right-0 text-gray-900 text-2xl font-bold hover:text-gray-600">
           ✕
         </button>
         <img src={url} alt="Justificatif" className="max-w-full max-h-[85vh] rounded-lg object-contain" />
@@ -81,13 +81,13 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#1a1b2e' }}>
+    <div className="min-h-screen flex items-center justify-center px-4" className="min-h-screen">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#7c3aed' }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" className="bg-[#863bff] hover:bg-[#7e14ff]">
             <span className="text-3xl">��</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">MyKrew Spend</h1>
+          <h1 className="text-2xl font-bold text-gray-900">MyKrew Spend</h1>
           <p className="text-gray-400 text-sm mt-1">Gestion des notes de frais</p>
         </div>
 
@@ -98,7 +98,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none transition-colors"
               placeholder="votre@email.com"
               required
               autoComplete="email"
@@ -110,7 +110,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none transition-colors"
               placeholder="••••••••"
               required
               autoComplete="current-password"
@@ -124,8 +124,8 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl text-white font-semibold transition-all disabled:opacity-50"
-            style={{ backgroundColor: '#7c3aed' }}
+            className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50"
+            className="bg-[#863bff] hover:bg-[#7e14ff]"
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
@@ -237,8 +237,8 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-white">Nouvelle depense</h2>
-        <button onClick={onCancel} className="text-gray-400 hover:text-white text-sm">Annuler</button>
+        <h2 className="text-xl font-bold text-gray-900">Nouvelle depense</h2>
+        <button onClick={onCancel} className="text-gray-400 hover:text-gray-900 text-sm">Annuler</button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -251,7 +251,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             min="0.01"
             value={amountTTC}
             onChange={e => setAmountTTC(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
             placeholder="0.00"
             required
           />
@@ -263,7 +263,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <select
             value={vatRate}
             onChange={e => setVatRate(parseFloat(e.target.value))}
-            className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
           >
             {VAT_RATES.map(r => (
               <option key={r.value} value={r.value}>{r.label}</option>
@@ -273,13 +273,13 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
 
         {/* Computed amounts */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="px-3 py-2 rounded-lg bg-[#242640] border border-gray-700">
+          <div className="px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
             <p className="text-xs text-gray-400">Montant HT</p>
-            <p className="text-white font-medium">{amountHT} EUR</p>
+            <p className="text-gray-900 font-medium">{amountHT} EUR</p>
           </div>
-          <div className="px-3 py-2 rounded-lg bg-[#242640] border border-gray-700">
+          <div className="px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
             <p className="text-xs text-gray-400">TVA</p>
-            <p className="text-white font-medium">{vatAmount} EUR</p>
+            <p className="text-gray-900 font-medium">{vatAmount} EUR</p>
           </div>
         </div>
 
@@ -290,7 +290,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
             required
           />
         </div>
@@ -302,7 +302,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             type="text"
             value={location}
             onChange={e => setLocation(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
             placeholder="Restaurant, Gare, etc."
             required
           />
@@ -314,7 +314,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <select
             value={category}
             onChange={e => setCategory(e.target.value as ExpenseCategory)}
-            className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
           >
             {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
               <option key={key} value={key}>{CATEGORY_ICONS[key as ExpenseCategory]} {label}</option>
@@ -328,7 +328,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none resize-none"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none resize-none"
             rows={2}
             placeholder="Dejeuner equipe, Train Paris-Lyon..."
             required
@@ -342,7 +342,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
             type="text"
             value={project}
             onChange={e => setProject(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl bg-[#242640] text-white border border-gray-700 focus:border-[#7c3aed] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:border-[#863bff] focus:outline-none"
             placeholder="Nom du projet"
           />
         </div>
@@ -361,7 +361,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-gray-600 text-gray-400 hover:border-[#7c3aed] hover:text-[#7c3aed] transition-colors"
+            className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#863bff] hover:text-[#863bff] transition-colors"
           >
             📷 {photo ? 'Changer la photo' : 'Ajouter un justificatif'}
           </button>
@@ -371,7 +371,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
               <button
                 type="button"
                 onClick={() => { setPhoto(null); setPhotoPreview(null) }}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center text-sm"
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 text-gray-900 flex items-center justify-center text-sm"
               >
                 ✕
               </button>
@@ -386,8 +386,8 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-3 rounded-xl text-white font-semibold transition-all disabled:opacity-50"
-          style={{ backgroundColor: '#7c3aed' }}
+          className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50"
+          className="bg-[#863bff] hover:bg-[#7e14ff]"
         >
           {submitting ? 'Envoi en cours...' : isManager ? 'Creer (auto-approuvee)' : 'Soumettre'}
         </button>
@@ -434,7 +434,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
 
   if (showForm) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: '#1a1b2e' }}>
+      <div className="min-h-screen" className="min-h-screen">
         <ExpenseForm
           employeeId={userId}
           employeeName={userName}
@@ -447,19 +447,19 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#1a1b2e' }}>
+    <div className="min-h-screen" className="min-h-screen">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
 
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white">Mes depenses</h1>
+            <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-7" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div>
             <p className="text-gray-400 text-sm">{userName}</p>
           </div>
           <button
             onClick={onLogout}
-            className="text-gray-400 hover:text-white text-sm px-3 py-1 rounded-lg border border-gray-700"
+            className="text-gray-400 hover:text-gray-900 text-sm px-3 py-1 rounded-lg border border-gray-200"
           >
             Deconnexion
           </button>
@@ -468,15 +468,15 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
 
       {/* Stats */}
       <div className="px-4 mb-4 grid grid-cols-2 gap-3">
-        <div className="p-3 rounded-xl" style={{ backgroundColor: '#242640' }}>
+        <div className="p-3 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
           <p className="text-xs text-gray-400">En attente</p>
           <p className="text-lg font-bold text-[#fbbf24]">
             {expenses.filter(e => e.status === 'pending').reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR
           </p>
         </div>
-        <div className="p-3 rounded-xl" style={{ backgroundColor: '#242640' }}>
+        <div className="p-3 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
           <p className="text-xs text-gray-400">Ce mois</p>
-          <p className="text-lg font-bold text-white">
+          <p className="text-lg font-bold text-gray-900">
             {expenses
               .filter(e => {
                 const d = e.date instanceof Date ? e.date : new Date()
@@ -492,7 +492,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
       <div className="px-4">
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-8 h-8 border-4 border-[#7c3aed] border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="w-8 h-8 border-4 border-[#863bff] border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-gray-400 mt-3">Chargement...</p>
           </div>
         ) : expenses.length === 0 ? (
@@ -506,7 +506,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
               <div
                 key={exp.id}
                 className="p-4 rounded-xl"
-                style={{ backgroundColor: '#242640' }}
+                className="bg-white border border-gray-200 shadow-sm"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -514,7 +514,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
                       <CategoryBadge category={exp.category} />
                       <StatusBadge status={exp.status} />
                     </div>
-                    <p className="text-white font-medium text-sm truncate">{exp.description}</p>
+                    <p className="text-gray-900 font-medium text-sm truncate">{exp.description}</p>
                     <p className="text-gray-400 text-xs mt-0.5">
                       {exp.location} • {exp.date instanceof Date ? exp.date.toLocaleDateString('fr-FR') : ''}
                     </p>
@@ -523,11 +523,11 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
                     )}
                   </div>
                   <div className="text-right ml-3">
-                    <p className="text-white font-bold">{exp.amountTTC.toFixed(2)} EUR</p>
+                    <p className="text-gray-900 font-bold">{exp.amountTTC.toFixed(2)} EUR</p>
                     {exp.receiptUrl && (
                       <button
                         onClick={() => setPhotoUrl(exp.receiptUrl!)}
-                        className="text-[#7c3aed] text-xs mt-1 hover:underline"
+                        className="text-[#863bff] text-xs mt-1 hover:underline"
                       >
                         📷 Voir
                       </button>
@@ -543,8 +543,8 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
       {/* FAB */}
       <button
         onClick={() => setShowForm(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl shadow-lg shadow-[#7c3aed]/30 active:scale-95 transition-transform"
-        style={{ backgroundColor: '#7c3aed' }}
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-gray-900 text-2xl shadow-lg shadow-[#863bff]/30 active:scale-95 transition-transform"
+        className="bg-[#863bff] hover:bg-[#7e14ff]"
       >
         +
       </button>
@@ -691,7 +691,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
 
   if (activeTab === 'new') {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: '#1a1b2e' }}>
+      <div className="min-h-screen" className="min-h-screen">
         <ExpenseForm
           employeeId={userId}
           employeeName={userName}
@@ -704,19 +704,19 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: '#1a1b2e' }}>
+    <div className="min-h-screen pb-20" className="min-h-screen">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
 
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white">MyKrew Spend</h1>
+            <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-7" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div>
             <p className="text-gray-400 text-sm">Responsable : {userName}</p>
           </div>
           <button
             onClick={onLogout}
-            className="text-gray-400 hover:text-white text-sm px-3 py-1 rounded-lg border border-gray-700"
+            className="text-gray-400 hover:text-gray-900 text-sm px-3 py-1 rounded-lg border border-gray-200"
           >
             Deconnexion
           </button>
@@ -736,10 +736,10 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
               activeTab === tab.key
-                ? 'text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-gray-900'
+                : 'text-gray-400 hover:text-gray-900'
             }`}
-            style={activeTab === tab.key ? { backgroundColor: '#7c3aed' } : { backgroundColor: '#242640' }}
+            style={activeTab === tab.key ? { backgroundColor: '#863bff' } : { backgroundColor: '#242640' }}
           >
             {tab.label}
           </button>
@@ -748,7 +748,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-[#7c3aed] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-4 border-[#863bff] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 mt-3">Chargement...</p>
         </div>
       ) : (
@@ -758,27 +758,27 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
             <div className="px-4 space-y-4">
               {/* Summary cards */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 rounded-xl" style={{ backgroundColor: '#242640' }}>
+                <div className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
                   <p className="text-xs text-gray-400">En attente</p>
                   <p className="text-xl font-bold text-[#fbbf24]">{totalPending.toFixed(2)} EUR</p>
-                  <p className="text-xs text-gray-500">{pendingExpenses.length} depense(s)</p>
+                  <p className="text-xs text-gray-400">{pendingExpenses.length} depense(s)</p>
                 </div>
-                <div className="p-4 rounded-xl" style={{ backgroundColor: '#242640' }}>
+                <div className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
                   <p className="text-xs text-gray-400">Approuvees (mois)</p>
                   <p className="text-xl font-bold text-[#4ade80]">{totalApprovedMonth.toFixed(2)} EUR</p>
-                  <p className="text-xs text-gray-500">{thisMonth.filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status)).length} depense(s)</p>
+                  <p className="text-xs text-gray-400">{thisMonth.filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status)).length} depense(s)</p>
                 </div>
               </div>
 
               {/* By category */}
               {byCategory.length > 0 && (
-                <div className="p-4 rounded-xl" style={{ backgroundColor: '#242640' }}>
+                <div className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
                   <p className="text-sm text-gray-400 mb-3">Par categorie (ce mois)</p>
                   <div className="space-y-2">
                     {byCategory.sort((a, b) => b.total - a.total).map(c => (
                       <div key={c.category} className="flex items-center justify-between">
                         <CategoryBadge category={c.category} />
-                        <span className="text-white text-sm font-medium">{c.total.toFixed(2)} EUR</span>
+                        <span className="text-gray-900 text-sm font-medium">{c.total.toFixed(2)} EUR</span>
                       </div>
                     ))}
                   </div>
@@ -792,19 +792,19 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                     <p className="text-sm text-gray-400">Dernieres en attente</p>
                     <button
                       onClick={() => setActiveTab('pending')}
-                      className="text-xs text-[#7c3aed] hover:underline"
+                      className="text-xs text-[#863bff] hover:underline"
                     >
                       Voir tout →
                     </button>
                   </div>
                   {pendingExpenses.slice(0, 3).map(exp => (
-                    <div key={exp.id} className="p-3 rounded-xl mb-2" style={{ backgroundColor: '#242640' }}>
+                    <div key={exp.id} className="p-3 rounded-xl mb-2" className="bg-white border border-gray-200 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-white text-sm font-medium">{exp.employeeName}</p>
+                          <p className="text-gray-900 text-sm font-medium">{exp.employeeName}</p>
                           <p className="text-gray-400 text-xs">{exp.description}</p>
                         </div>
-                        <p className="text-white font-bold text-sm">{exp.amountTTC.toFixed(2)} EUR</p>
+                        <p className="text-gray-900 font-bold text-sm">{exp.amountTTC.toFixed(2)} EUR</p>
                       </div>
                     </div>
                   ))}
@@ -823,26 +823,26 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                 </div>
               ) : (
                 pendingExpenses.map(exp => (
-                  <div key={exp.id} className="p-4 rounded-xl" style={{ backgroundColor: '#242640' }}>
+                  <div key={exp.id} className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium text-sm">{exp.employeeName}</p>
+                        <p className="text-gray-900 font-medium text-sm">{exp.employeeName}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <CategoryBadge category={exp.category} />
                         </div>
                         <p className="text-gray-400 text-xs mt-1 truncate">{exp.description}</p>
-                        <p className="text-gray-500 text-xs">
+                        <p className="text-gray-400 text-xs">
                           {exp.location} • {exp.date instanceof Date ? exp.date.toLocaleDateString('fr-FR') : ''}
                         </p>
-                        {exp.project && <p className="text-gray-500 text-xs">Projet: {exp.project}</p>}
+                        {exp.project && <p className="text-gray-400 text-xs">Projet: {exp.project}</p>}
                       </div>
                       <div className="text-right ml-3">
-                        <p className="text-white font-bold">{exp.amountTTC.toFixed(2)} EUR</p>
-                        <p className="text-gray-500 text-xs">HT: {(exp.amountHT || 0).toFixed(2)}</p>
+                        <p className="text-gray-900 font-bold">{exp.amountTTC.toFixed(2)} EUR</p>
+                        <p className="text-gray-400 text-xs">HT: {(exp.amountHT || 0).toFixed(2)}</p>
                         {exp.receiptUrl && (
                           <button
                             onClick={() => setPhotoUrl(exp.receiptUrl!)}
-                            className="text-[#7c3aed] text-xs mt-1 hover:underline"
+                            className="text-[#863bff] text-xs mt-1 hover:underline"
                           >
                             📷 Justificatif
                           </button>
@@ -857,7 +857,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                           value={rejectionReason}
                           onChange={e => setRejectionReason(e.target.value)}
                           placeholder="Motif du refus..."
-                          className="w-full px-3 py-2 rounded-lg bg-[#1a1b2e] text-white border border-gray-700 text-sm focus:border-red-400 focus:outline-none"
+                          className="w-full px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-sm focus:border-red-400 focus:outline-none"
                         />
                         <div className="flex gap-2">
                           <button
@@ -869,7 +869,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                           </button>
                           <button
                             onClick={() => { setRejectingId(null); setRejectionReason('') }}
-                            className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white"
+                            className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-900"
                           >
                             Annuler
                           </button>
@@ -906,7 +906,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                   <select
                     value={filterStatus}
                     onChange={e => setFilterStatus(e.target.value as ExpenseStatus | 'all')}
-                    className="px-3 py-2 rounded-lg bg-[#242640] text-white border border-gray-700 text-xs focus:border-[#7c3aed] focus:outline-none"
+                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-900 border border-gray-200 text-xs focus:border-[#863bff] focus:outline-none"
                   >
                     <option value="all">Tous statuts</option>
                     <option value="pending">En attente</option>
@@ -918,7 +918,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                   <select
                     value={filterCategory}
                     onChange={e => setFilterCategory(e.target.value as ExpenseCategory | 'all')}
-                    className="px-3 py-2 rounded-lg bg-[#242640] text-white border border-gray-700 text-xs focus:border-[#7c3aed] focus:outline-none"
+                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-900 border border-gray-200 text-xs focus:border-[#863bff] focus:outline-none"
                   >
                     <option value="all">Categories</option>
                     {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
@@ -929,14 +929,14 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                     type="month"
                     value={filterMonth}
                     onChange={e => setFilterMonth(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-[#242640] text-white border border-gray-700 text-xs focus:border-[#7c3aed] focus:outline-none"
+                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-900 border border-gray-200 text-xs focus:border-[#863bff] focus:outline-none"
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-400">{filteredExpenses.length} depense(s) • {filteredExpenses.reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR TTC</p>
                   <button
                     onClick={exportCSV}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-[#7c3aed] border border-[#7c3aed] hover:bg-[#7c3aed]/10"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-[#863bff] border border-[#863bff] hover:bg-[#863bff]/10"
                   >
                     📥 Export CSV
                   </button>
@@ -952,25 +952,25 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
               ) : (
                 <div className="space-y-3">
                   {filteredExpenses.map(exp => (
-                    <div key={exp.id} className="p-4 rounded-xl" style={{ backgroundColor: '#242640' }}>
+                    <div key={exp.id} className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <StatusBadge status={exp.status} />
                             <CategoryBadge category={exp.category} />
                           </div>
-                          <p className="text-white font-medium text-sm">{exp.employeeName}</p>
+                          <p className="text-gray-900 font-medium text-sm">{exp.employeeName}</p>
                           <p className="text-gray-400 text-xs truncate">{exp.description}</p>
-                          <p className="text-gray-500 text-xs">
+                          <p className="text-gray-400 text-xs">
                             {exp.location} • {exp.date instanceof Date ? exp.date.toLocaleDateString('fr-FR') : ''}
                           </p>
                         </div>
                         <div className="text-right ml-3">
-                          <p className="text-white font-bold text-sm">{exp.amountTTC.toFixed(2)} EUR</p>
+                          <p className="text-gray-900 font-bold text-sm">{exp.amountTTC.toFixed(2)} EUR</p>
                           {exp.receiptUrl && (
                             <button
                               onClick={() => setPhotoUrl(exp.receiptUrl!)}
-                              className="text-[#7c3aed] text-xs mt-1 hover:underline"
+                              className="text-[#863bff] text-xs mt-1 hover:underline"
                             >
                               📷
                             </button>
@@ -981,7 +981,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                       {exp.status === 'approved' && (
                         <button
                           onClick={() => handleReimburse(exp.id)}
-                          className="mt-3 w-full py-2 rounded-lg text-xs font-medium bg-[#7c3aed]/20 text-[#a78bfa] hover:bg-[#7c3aed]/30"
+                          className="mt-3 w-full py-2 rounded-lg text-xs font-medium bg-[#863bff]/20 text-[#a78bfa] hover:bg-[#863bff]/30"
                         >
                           💰 Marquer comme remboursee
                         </button>
@@ -1050,9 +1050,9 @@ export default function App() {
   // Loading state
   if (authLoading || roleLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#1a1b2e' }}>
+      <div className="min-h-screen flex items-center justify-center" className="min-h-screen">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-[#7c3aed] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border-4 border-[#863bff] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 mt-4 text-sm">Chargement...</p>
         </div>
       </div>
