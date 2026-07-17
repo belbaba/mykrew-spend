@@ -720,20 +720,20 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
       {/* Tabs */}
       <div className="px-4 mb-4 flex gap-2 overflow-x-auto">
         {([
-          { key: 'dashboard', label: '📊 Tableau' },
-          { key: 'pending', label: `⏳ A traiter (${pendingExpenses.length})` },
-          { key: 'all', label: '�� Toutes' },
-          { key: 'new', label: '➕ Nouvelle' },
+          { key: 'dashboard', label: 'Tableau' },
+          { key: 'pending', label: `A traiter (${pendingExpenses.length})` },
+          { key: 'all', label: 'Toutes' },
+          { key: 'new', label: 'Nouvelle' },
         ] as { key: ManagerTab; label: string }[]).map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
               activeTab === tab.key
-                ? 'text-gray-900'
-                : 'text-gray-400 hover:text-gray-900'
+                ? 'text-white'
+                : 'text-gray-700 hover:text-gray-900'
             }`}
-            style={activeTab === tab.key ? { backgroundColor: '#863bff' } : { backgroundColor: '#242640' }}
+            style={activeTab === tab.key ? { backgroundColor: '#863bff' } : { backgroundColor: '#ffffff', border: '1px solid #e5e7eb' }}
           >
             {tab.label}
           </button>
