@@ -85,7 +85,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           
-          <img src="/logo.png" alt="MyKrew" className="h-10 mx-auto mb-2" /><h1 className="text-2xl font-bold text-gray-900">MyKrew Spend</h1>
+          <img src="/logo.png" alt="MyKrew" className="h-44 mx-auto mb-4" /><h1 className="text-2xl font-bold text-gray-900">MyKrew Spend</h1>
           <p className="text-gray-400 text-sm mt-1">Gestion des notes de frais</p>
         </div>
 
@@ -234,7 +234,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-6" /><h2 className="text-xl font-bold text-gray-900">Nouvelle depense</h2></div>
+        <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-10" /><h2 className="text-xl font-bold text-gray-900">Nouvelle depense</h2></div>
         <button onClick={onCancel} className="text-gray-400 hover:text-gray-900 text-sm">Annuler</button>
       </div>
 
@@ -450,7 +450,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-7" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div>
+            <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-14" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div>
             <p className="text-gray-400 text-sm">{userName}</p>
           </div>
           <button
@@ -705,7 +705,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-7" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div>
+            <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-14" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div>
             <p className="text-gray-400 text-sm">Responsable : {userName}</p>
           </div>
           <button
