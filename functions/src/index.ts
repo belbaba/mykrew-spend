@@ -12,7 +12,7 @@ const db = admin.firestore()
 const resendApiKey = defineString('RESEND_API_KEY')
 const senderEmail = defineString('SENDER_EMAIL', { default: 'MyKrew Spend <noreply@mykrew.pro>' })
 const appUrl = defineString('APP_URL', { default: 'https://spend.mykrew.pro' })
-const adminEmail = defineString('ADMIN_EMAIL', { default: 'jordan.guillou92@gmail.com' })
+const adminEmail = defineString('ADMIN_EMAIL')
 
 // --- Helpers ---
 
