@@ -81,10 +81,10 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" className="min-h-screen">
+    <div className="min-h-screen flex items-center justify-center px-4 min-h-screen">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" className="bg-[#863bff] hover:bg-[#7e14ff]">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-[#863bff] hover:bg-[#7e14ff]">
             <span className="text-3xl">��</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">MyKrew Spend</h1>
@@ -124,8 +124,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50"
-            className="bg-[#863bff] hover:bg-[#7e14ff]"
+            className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50 bg-[#863bff] hover:bg-[#7e14ff]"
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
@@ -386,8 +385,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel }
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50"
-          className="bg-[#863bff] hover:bg-[#7e14ff]"
+          className="w-full py-3 rounded-xl text-gray-900 font-semibold transition-all disabled:opacity-50 bg-[#863bff] hover:bg-[#7e14ff]"
         >
           {submitting ? 'Envoi en cours...' : isManager ? 'Creer (auto-approuvee)' : 'Soumettre'}
         </button>
@@ -434,7 +432,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
 
   if (showForm) {
     return (
-      <div className="min-h-screen" className="min-h-screen">
+      <div className="min-h-screen min-h-screen">
         <ExpenseForm
           employeeId={userId}
           employeeName={userName}
@@ -447,7 +445,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
   }
 
   return (
-    <div className="min-h-screen" className="min-h-screen">
+    <div className="min-h-screen min-h-screen">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
 
       {/* Header */}
@@ -468,13 +466,13 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
 
       {/* Stats */}
       <div className="px-4 mb-4 grid grid-cols-2 gap-3">
-        <div className="p-3 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
+        <div className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm">
           <p className="text-xs text-gray-400">En attente</p>
           <p className="text-lg font-bold text-[#fbbf24]">
             {expenses.filter(e => e.status === 'pending').reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR
           </p>
         </div>
-        <div className="p-3 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
+        <div className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm">
           <p className="text-xs text-gray-400">Ce mois</p>
           <p className="text-lg font-bold text-gray-900">
             {expenses
@@ -505,8 +503,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
             {expenses.map(exp => (
               <div
                 key={exp.id}
-                className="p-4 rounded-xl"
-                className="bg-white border border-gray-200 shadow-sm"
+                className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -543,8 +540,7 @@ function EmployeeView({ userId, userName, onLogout }: EmployeeViewProps) {
       {/* FAB */}
       <button
         onClick={() => setShowForm(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-gray-900 text-2xl shadow-lg shadow-[#863bff]/30 active:scale-95 transition-transform"
-        className="bg-[#863bff] hover:bg-[#7e14ff]"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-gray-900 text-2xl shadow-lg shadow-[#863bff]/30 active:scale-95 transition-transform bg-[#863bff] hover:bg-[#7e14ff]"
       >
         +
       </button>
@@ -691,7 +687,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
 
   if (activeTab === 'new') {
     return (
-      <div className="min-h-screen" className="min-h-screen">
+      <div className="min-h-screen min-h-screen">
         <ExpenseForm
           employeeId={userId}
           employeeName={userName}
@@ -704,7 +700,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
   }
 
   return (
-    <div className="min-h-screen pb-20" className="min-h-screen">
+    <div className="min-h-screen pb-20 min-h-screen">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
 
       {/* Header */}
@@ -758,12 +754,12 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
             <div className="px-4 space-y-4">
               {/* Summary cards */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
+                <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
                   <p className="text-xs text-gray-400">En attente</p>
                   <p className="text-xl font-bold text-[#fbbf24]">{totalPending.toFixed(2)} EUR</p>
                   <p className="text-xs text-gray-400">{pendingExpenses.length} depense(s)</p>
                 </div>
-                <div className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
+                <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
                   <p className="text-xs text-gray-400">Approuvees (mois)</p>
                   <p className="text-xl font-bold text-[#4ade80]">{totalApprovedMonth.toFixed(2)} EUR</p>
                   <p className="text-xs text-gray-400">{thisMonth.filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status)).length} depense(s)</p>
@@ -772,7 +768,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
 
               {/* By category */}
               {byCategory.length > 0 && (
-                <div className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
+                <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
                   <p className="text-sm text-gray-400 mb-3">Par categorie (ce mois)</p>
                   <div className="space-y-2">
                     {byCategory.sort((a, b) => b.total - a.total).map(c => (
@@ -798,7 +794,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                     </button>
                   </div>
                   {pendingExpenses.slice(0, 3).map(exp => (
-                    <div key={exp.id} className="p-3 rounded-xl mb-2" className="bg-white border border-gray-200 shadow-sm">
+                    <div key={exp.id} className="p-3 rounded-xl mb-2 bg-white border border-gray-200 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-gray-900 text-sm font-medium">{exp.employeeName}</p>
@@ -823,7 +819,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
                 </div>
               ) : (
                 pendingExpenses.map(exp => (
-                  <div key={exp.id} className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
+                  <div key={exp.id} className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-900 font-medium text-sm">{exp.employeeName}</p>
@@ -952,7 +948,7 @@ function ManagerView({ userId, userName, onLogout }: ManagerViewProps) {
               ) : (
                 <div className="space-y-3">
                   {filteredExpenses.map(exp => (
-                    <div key={exp.id} className="p-4 rounded-xl" className="bg-white border border-gray-200 shadow-sm">
+                    <div key={exp.id} className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -1050,7 +1046,7 @@ export default function App() {
   // Loading state
   if (authLoading || roleLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" className="min-h-screen">
+      <div className="min-h-screen flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-[#863bff] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 mt-4 text-sm">Chargement...</p>
