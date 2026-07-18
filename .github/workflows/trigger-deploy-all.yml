@@ -1,0 +1,22 @@
+name: Trigger Deploy All Spend
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy-all-spend on mykrew-admin
+        run: |
+          curl -s -X POST \
+            "https://api.github.com/repos/belbaba/mykrew-admin/dispatches" \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            -d '{"event_type": "deploy-spend"}'
+          echo "✅ Deploy All Spend déclenché"
