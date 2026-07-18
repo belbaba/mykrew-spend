@@ -59,6 +59,41 @@ async function incrementEmailCounter(): Promise<void> {
 }
 
 /**
+ * Envoie une notification push FCM a un utilisateur
+ */
+async function sendPushNotification(userId: string, title: string, body: string): Promise<void> {
+  try {
+    const userDoc = await db.collection('users').doc(userId).get()
+    const tokens: string[] = userDoc.data()?.fcmTokens || []
+    if (tokens.length === 0) return
+
+    const message = {
+      notification: { title, body },
+      tokens,
+    }
+
+    const response = await admin.messaging().sendEachForMulticast(message)
+
+    // Nettoyer les tokens invalides
+    if (response.failureCount > 0) {
+      const invalidTokens: string[] = []
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
+          invalidTokens.push(tokens[idx])
+        }
+      })
+      if (invalidTokens.length > 0) {
+        await db.collection('users').doc(userId).update({
+          fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
+        })
+      }
+    }
+  } catch (err) {
+    console.error('Erreur push notification:', err)
+  }
+}
+
+/**
  * Template email HTML avec le style MyKrew Spend (dark theme)
  */
 function emailTemplate(title: string, body: string, ctaUrl?: string, ctaText?: string): string {
@@ -123,6 +158,9 @@ export const createEmployee = onCall({ region: 'europe-west1' }, async (request)
       password: password,
       displayName: `${firstName} ${lastName}`,
     })
+
+    // Set custom claim for role (used as fallback if Firestore read fails)
+    await admin.auth().setCustomUserClaims(userRecord.uid, { role: userRole })
 
     await db.collection('users').doc(userRecord.uid).set({
       email: email.toLowerCase(),
@@ -265,6 +303,15 @@ export const onExpenseCreated = onDocumentCreated(
         console.log(`Email envoye a ${manager.email} pour la depense ${expenseId}`)
         await incrementEmailCounter()
       }
+
+      // Push notification aux managers
+      for (const managerDoc of managersSnap.docs) {
+        await sendPushNotification(
+          managerDoc.id,
+          'Nouvelle note de frais',
+          `${employee.firstName} ${employee.lastName} - ${expense.amount?.toFixed(2) || expense.amountTTC?.toFixed(2) || '?'} EUR`
+        )
+      }
     } catch (error) {
       console.error('Erreur envoi email onExpenseCreated:', error)
     }
@@ -314,10 +361,17 @@ export const onExpenseUpdated = onDocumentUpdated(
         await getResend().emails.send({
           from: senderEmail.value(),
           to: employee.email,
-          subject: `MyKrew Spend -- Votre note de frais de ${after.amount.toFixed(2)} EUR a ete approuvee`,
+          subject: `MyKrew Spend -- Votre note de frais de ${after.amount?.toFixed(2) || after.amountTTC?.toFixed(2) || '?'} EUR a ete approuvee`,
           html: emailTemplate('Note de frais approuvee', approvedBody, appUrl.value(), 'Ouvrir MyKrew Spend'),
         })
         await incrementEmailCounter()
+
+        // Push notification a l employe
+        await sendPushNotification(
+          after.employeeId,
+          'Note de frais approuvee ✓',
+          `Votre note de ${(after.amountTTC || after.amount || 0).toFixed(2)} EUR a ete approuvee`
+        )
 
         // Email au(x) manager(s) avec le justificatif en piece jointe
         if (after.receiptUrl) {
@@ -382,10 +436,17 @@ export const onExpenseUpdated = onDocumentUpdated(
         await getResend().emails.send({
           from: senderEmail.value(),
           to: employee.email,
-          subject: `MyKrew Spend -- Votre note de frais de ${after.amount.toFixed(2)} EUR a ete refusee`,
+          subject: `MyKrew Spend -- Votre note de frais de ${after.amount?.toFixed(2) || after.amountTTC?.toFixed(2) || '?'} EUR a ete refusee`,
           html: emailTemplate('Note de frais refusee', rejectedBody, appUrl.value(), 'Ouvrir MyKrew Spend'),
         })
         await incrementEmailCounter()
+
+        // Push notification a l employe
+        await sendPushNotification(
+          after.employeeId,
+          'Note de frais refusee ✕',
+          `Votre note de ${(after.amountTTC || after.amount || 0).toFixed(2)} EUR a ete refusee${after.rejectionReason ? ` : ${after.rejectionReason}` : ''}`
+        )
       }
     } catch (error) {
       console.error('Erreur envoi email onExpenseUpdated:', error)
@@ -625,6 +686,233 @@ export const storageCleanup = onSchedule(
   }
 )
 /**
+ * Supprimer une note de frais approuvee (managers uniquement)
+ * Supprime aussi le justificatif associe dans Storage
+ */
+export const deleteExpense = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Non authentifie')
+  }
+
+  const callerDoc = await db.collection('users').doc(request.auth.uid).get()
+  if (!callerDoc.exists || callerDoc.data()?.role !== 'manager') {
+    throw new HttpsError('permission-denied', 'Seuls les responsables peuvent supprimer des notes de frais')
+  }
+
+  const { expenseId } = request.data
+
+  if (!expenseId) {
+    throw new HttpsError('invalid-argument', 'ID de la note de frais manquant')
+  }
+
+  try {
+    const expenseDoc = await db.collection('expenses').doc(expenseId).get()
+    if (!expenseDoc.exists) {
+      throw new HttpsError('not-found', 'Note de frais introuvable')
+    }
+
+    const expense = expenseDoc.data()!
+
+    // Supprimer le justificatif dans Storage si present
+    if (expense.receiptPath) {
+      try {
+        const bucket = admin.storage().bucket()
+        await bucket.file(expense.receiptPath).delete()
+      } catch (storageErr) {
+        console.warn('Justificatif non trouve ou deja supprime:', storageErr)
+      }
+    }
+
+    // Supprimer la note de frais
+    await db.collection('expenses').doc(expenseId).delete()
+
+    await logActivity('expense_deleted', {
+      expenseId,
+      employeeId: expense.employeeId,
+      employeeName: expense.employeeName,
+      amount: expense.amountTTC || expense.amount,
+      status: expense.status,
+    }, request.auth.uid)
+
+    return { success: true }
+  } catch (error: unknown) {
+    if ((error as { code?: string }).code?.startsWith('functions/')) {
+      throw error
+    }
+    const err = error as { message?: string }
+    throw new HttpsError('internal', err.message || 'Erreur lors de la suppression')
+  }
+})
+
+/**
+ * Ajouter un commentaire a une note de frais (manager)
+ * Permet de demander des precisions sans refuser
+ */
+export const addComment = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Non authentifie')
+  }
+
+  const callerDoc = await db.collection('users').doc(request.auth.uid).get()
+  if (!callerDoc.exists || callerDoc.data()?.role !== 'manager') {
+    throw new HttpsError('permission-denied', 'Seuls les responsables peuvent commenter')
+  }
+
+  const { expenseId, text } = request.data
+
+  if (!expenseId || !text?.trim()) {
+    throw new HttpsError('invalid-argument', 'ID et texte du commentaire requis')
+  }
+
+  const expenseDoc = await db.collection('expenses').doc(expenseId).get()
+  if (!expenseDoc.exists) {
+    throw new HttpsError('not-found', 'Note de frais introuvable')
+  }
+
+  const caller = callerDoc.data()!
+  const comment = {
+    authorId: request.auth.uid,
+    authorName: `${caller.firstName} ${caller.lastName}`,
+    text: text.trim(),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  }
+
+  await db.collection('expenses').doc(expenseId).collection('comments').add(comment)
+
+  // Notifier l employe par email
+  const expense = expenseDoc.data()!
+  const employeeDoc = await db.collection('users').doc(expense.employeeId).get()
+  if (employeeDoc.exists && employeeDoc.data()?.email) {
+    const employee = employeeDoc.data()!
+    try {
+      await getResend().emails.send({
+        from: senderEmail.value(),
+        to: employee.email,
+        subject: `MyKrew Spend -- Commentaire sur votre note de frais`,
+        html: emailTemplate(
+          'Nouveau commentaire',
+          `<p style="color:#cbd5e1;"><strong style="color:#f1f5f9;">${caller.firstName} ${caller.lastName}</strong> a commente votre note de frais :</p>
+          <div style="background:#1a1b2e;border-left:3px solid #7c3aed;padding:12px 16px;margin:16px 0;border-radius:4px;">
+            <p style="color:#e2e8f0;margin:0;font-style:italic;">"${text.trim()}"</p>
+          </div>
+          <p style="color:#94a3b8;font-size:13px;">Note : ${expense.description} - ${(expense.amountTTC || expense.amount || 0).toFixed(2)} EUR</p>`,
+          appUrl.value(),
+          'Voir la note'
+        ),
+      })
+      await incrementEmailCounter()
+    } catch (emailErr) {
+      console.error('Erreur envoi email commentaire:', emailErr)
+    }
+  }
+
+  await logActivity('comment_added', { expenseId, text: text.trim() }, request.auth.uid)
+
+  return { success: true }
+})
+
+/**
+ * Rappel automatique : email aux managers si des notes sont en attente > 72h
+ * Execute tous les jours a 9h30 (Europe/Paris)
+ */
+export const pendingReminder = onSchedule(
+  { schedule: '30 9 * * *', timeZone: 'Europe/Paris', region: 'europe-west1' },
+  async () => {
+    try {
+      const now = new Date()
+      const threshold72h = new Date(now.getTime() - 72 * 60 * 60 * 1000)
+
+      const pendingSnap = await db.collection('expenses')
+        .where('status', '==', 'pending')
+        .get()
+
+      const oldPending = pendingSnap.docs.filter(doc => {
+        const createdAt = doc.data().createdAt?.toDate?.()
+        return createdAt && createdAt < threshold72h
+      })
+
+      if (oldPending.length === 0) {
+        console.log('Aucune note en attente > 72h, pas de rappel')
+        return
+      }
+
+      const managersSnap = await db.collection('users').where('role', '==', 'manager').get()
+      if (managersSnap.empty) return
+
+      const totalAmount = oldPending.reduce((sum, doc) => sum + (doc.data().amountTTC || doc.data().amount || 0), 0)
+
+      const expensesList = oldPending.slice(0, 5).map(doc => {
+        const d = doc.data()
+        const createdAt = d.createdAt?.toDate?.()
+        const hoursAgo = createdAt ? Math.round((now.getTime() - createdAt.getTime()) / (60 * 60 * 1000)) : 0
+        return `<tr>
+          <td style="padding:6px 12px;border:1px solid #363858;color:#f1f5f9;">${d.employeeName || 'Inconnu'}</td>
+          <td style="padding:6px 12px;border:1px solid #363858;color:#f1f5f9;">${(d.amountTTC || d.amount || 0).toFixed(2)} EUR</td>
+          <td style="padding:6px 12px;border:1px solid #363858;color:#fbbf24;">${hoursAgo}h</td>
+        </tr>`
+      }).join('')
+
+      const body = `
+        <p style="color:#fbbf24;font-weight:600;">⚠️ ${oldPending.length} note(s) de frais en attente depuis plus de 72h</p>
+        <p style="color:#cbd5e1;">Montant total : <strong style="color:#f1f5f9;">${totalAmount.toFixed(2)} EUR</strong></p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          <tr>
+            <th style="padding:6px 12px;border:1px solid #363858;color:#94a3b8;text-align:left;">Employe</th>
+            <th style="padding:6px 12px;border:1px solid #363858;color:#94a3b8;text-align:left;">Montant</th>
+            <th style="padding:6px 12px;border:1px solid #363858;color:#94a3b8;text-align:left;">Attente</th>
+          </tr>
+          ${expensesList}
+        </table>
+        ${oldPending.length > 5 ? `<p style="color:#94a3b8;font-size:13px;">... et ${oldPending.length - 5} autre(s)</p>` : ''}
+      `
+
+      for (const managerDoc of managersSnap.docs) {
+        const manager = managerDoc.data()
+        if (!manager.email) continue
+
+        await getResend().emails.send({
+          from: senderEmail.value(),
+          to: manager.email,
+          subject: `MyKrew Spend -- ⚠️ ${oldPending.length} note(s) en attente > 72h`,
+          html: emailTemplate('Rappel : notes en attente', body, appUrl.value(), 'Traiter maintenant'),
+        })
+        await incrementEmailCounter()
+      }
+
+      await logActivity('pending_reminder', {
+        oldPendingCount: oldPending.length,
+        totalAmount,
+      })
+
+      console.log(`Rappel envoye : ${oldPending.length} notes en attente > 72h`)
+    } catch (error) {
+      console.error('Erreur pendingReminder:', error)
+    }
+  }
+)
+
+/**
+ * Enregistrer un token FCM pour les notifications push
+ */
+export const registerPushToken = onCall({ region: 'europe-west1' }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Non authentifie')
+  }
+
+  const { token } = request.data
+  if (!token) {
+    throw new HttpsError('invalid-argument', 'Token manquant')
+  }
+
+  await db.collection('users').doc(request.auth.uid).update({
+    fcmTokens: admin.firestore.FieldValue.arrayUnion(token),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  })
+
+  return { success: true }
+})
+
+/**
  * Endpoint de sante (health check)
  */
 export const health = onRequest({ region: 'europe-west1', cors: true }, async (req, res) => {
@@ -667,6 +955,10 @@ export const health = onRequest({ region: 'europe-west1', cors: true }, async (r
 /**
  * Endpoint billing : informations de facturation
  * Protege par header X-Billing-Key
+ *
+ * Retourne le "high water mark" du mois : le pic maximum d'employés actifs
+ * atteint à un moment quelconque du mois en cours.
+ * Cela protège contre l'abus de suppression/recréation d'employés autour de la facturation.
  */
 export const billingInfo = onRequest({ region: 'europe-west1', cors: true }, async (req, res) => {
   if (req.method !== 'GET') {
@@ -687,9 +979,24 @@ export const billingInfo = onRequest({ region: 'europe-west1', cors: true }, asy
     const now = new Date()
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-    // Utilisateurs actifs
-    const usersSnap = await db.collection('users').where('isActive', '==', true).get()
-    const activeUsers = usersSnap.size
+    // Utilisateurs actifs (employés uniquement pour la facturation)
+    const employeesSnap = await db.collection('users')
+      .where('isActive', '==', true)
+      .where('role', '==', 'employee')
+      .get()
+
+    const managersSnap = await db.collection('users')
+      .where('isActive', '==', true)
+      .where('role', '==', 'manager')
+      .get()
+
+    const currentCount = employeesSnap.size
+
+    // Récupérer le high water mark du mois
+    const metricsDoc = await db.collection('billingMetrics').doc(monthKey).get()
+    const peakCount = metricsDoc.exists
+      ? Math.max(metricsDoc.data()?.peakEmployeeCount || 0, currentCount)
+      : currentCount
 
     // Stats emails du mois
     const emailStatsDoc = await db.collection('emailStats').doc(monthKey).get()
@@ -716,13 +1023,16 @@ export const billingInfo = onRequest({ region: 'europe-west1', cors: true }, asy
 
     res.status(200).json({
       status: 'ok',
-      period: monthKey,
-      billing: {
-        activeUsers,
-        pricePerUser: 1.00,
-        monthlyTotal: activeUsers * 1.00,
-        currency: 'EUR',
-      },
+      projectId: process.env.GCLOUD_PROJECT || 'mykrew-spend',
+      app: 'spend',
+      monthKey,
+      employeeCount: currentCount,
+      managerCount: managersSnap.size,
+      totalActiveUsers: currentCount + managersSnap.size,
+      billableCount: peakCount, // Pic du mois (protection anti-abus)
+      currentCount,
+      peakCount,
+      // Données supplémentaires spécifiques à Spend (usage)
       usage: {
         emailsSent,
         expenses: {
@@ -744,3 +1054,88 @@ export const billingInfo = onRequest({ region: 'europe-west1', cors: true }, asy
     })
   }
 })
+
+/**
+ * Tracker du high water mark — mis à jour à chaque changement d'utilisateur
+ * Surveille la collection users et met à jour billingMetrics/{monthKey}.peakEmployeeCount
+ */
+export const trackEmployeePeak = onDocumentUpdated(
+  'users/{userId}',
+  async () => {
+    try {
+      const now = new Date()
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+      const activeSnap = await db.collection('users')
+        .where('isActive', '==', true)
+        .where('role', '==', 'employee')
+        .get()
+
+      const currentCount = activeSnap.size
+      const metricsRef = db.collection('billingMetrics').doc(monthKey)
+      const metricsDoc = await metricsRef.get()
+
+      if (!metricsDoc.exists) {
+        await metricsRef.set({
+          monthKey,
+          peakEmployeeCount: currentCount,
+          currentEmployeeCount: currentCount,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      } else {
+        const existingPeak = metricsDoc.data()?.peakEmployeeCount || 0
+        const newPeak = Math.max(existingPeak, currentCount)
+
+        await metricsRef.update({
+          peakEmployeeCount: newPeak,
+          currentEmployeeCount: currentCount,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
+    } catch (err) {
+      console.error('Erreur trackEmployeePeak:', err)
+    }
+  }
+)
+
+/**
+ * Tracker du high water mark — appelé à la création d'un utilisateur
+ */
+export const trackEmployeePeakOnCreate = onDocumentCreated(
+  'users/{userId}',
+  async () => {
+    try {
+      const now = new Date()
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+      const activeSnap = await db.collection('users')
+        .where('isActive', '==', true)
+        .where('role', '==', 'employee')
+        .get()
+
+      const currentCount = activeSnap.size
+      const metricsRef = db.collection('billingMetrics').doc(monthKey)
+      const metricsDoc = await metricsRef.get()
+
+      if (!metricsDoc.exists) {
+        await metricsRef.set({
+          monthKey,
+          peakEmployeeCount: currentCount,
+          currentEmployeeCount: currentCount,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      } else {
+        const existingPeak = metricsDoc.data()?.peakEmployeeCount || 0
+        const newPeak = Math.max(existingPeak, currentCount)
+
+        await metricsRef.update({
+          peakEmployeeCount: newPeak,
+          currentEmployeeCount: currentCount,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
+    } catch (err) {
+      console.error('Erreur trackEmployeePeakOnCreate:', err)
+    }
+  }
+)

@@ -41,9 +41,10 @@ export interface Expense {
   category: ExpenseCategory
   description: string
   project?: string
-  // Justificatif
+  // Justificatifs (multi)
   receiptUrl?: string
   receiptPath?: string // chemin dans Storage
+  receipts?: { url: string; path: string; name: string }[]
   // Statut
   status: ExpenseStatus
   rejectionReason?: string
@@ -53,6 +54,22 @@ export interface Expense {
   updatedAt: Date
   approvedAt?: Date
   approvedBy?: string
+}
+
+export interface Comment {
+  id: string
+  authorId: string
+  authorName: string
+  text: string
+  createdAt: Date
+}
+
+export interface ActivityLog {
+  id: string
+  action: string
+  details: Record<string, unknown>
+  userId: string
+  timestamp: Date
 }
 
 export interface BudgetLimit {
