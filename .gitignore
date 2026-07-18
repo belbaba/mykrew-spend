@@ -2,7 +2,9 @@ node_modules/
 dist/
 .env
 functions/.env
+functions/.env.*
 *.local
+*.tsbuildinfo
 .DS_Store
 functions/lib/
 functions/node_modules/
