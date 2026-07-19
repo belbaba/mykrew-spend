@@ -512,9 +512,6 @@ export const dailySupervision = onSchedule(
       const usersSnap = await db.collection('users').where('isActive', '==', true).get()
       const totalUsers = usersSnap.size
 
-      // Depenses en attente
-      const pendingSnap = await db.collection('expenses').where('status', '==', 'pending').get()
-
       // Stockage (justificatifs)
       let storageSizeMB = 0
       let storageFileCount = 0
@@ -558,10 +555,9 @@ export const dailySupervision = onSchedule(
         <table style="border-collapse:collapse;width:100%;max-width:450px;">
           <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">🟢 Environnement</td><td style="padding:8px;border:1px solid #e5e7eb;"><strong>UP</strong> — spend.mykrew.pro</td></tr>
           <tr><td style="padding:8px;border:1px solid #e5e7eb;">👥 Utilisateurs actifs</td><td style="padding:8px;border:1px solid #e5e7eb;">${totalUsers} / 40</td></tr>
-          <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">⏳ Depenses en attente</td><td style="padding:8px;border:1px solid #e5e7eb;">${pendingSnap.size}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb;">📁 Stockage</td><td style="padding:8px;border:1px solid #e5e7eb;">${storageSizeMB.toFixed(1)} MB (${storageFileCount} fichiers) — ${storagePercent}%</td></tr>
-          <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">📧 Emails ce mois</td><td style="padding:8px;border:1px solid #e5e7eb;">${monthEmails} / ${EMAILS_MONTHLY_LIMIT} (${emailPercent}%)</td></tr>
-          <tr><td style="padding:8px;border:1px solid #e5e7eb;">📄 Documents Firestore</td><td style="padding:8px;border:1px solid #e5e7eb;">~${totalDocs}</td></tr>
+          <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">📁 Stockage</td><td style="padding:8px;border:1px solid #e5e7eb;">${storageSizeMB.toFixed(1)} MB (${storageFileCount} fichiers) — ${storagePercent}%</td></tr>
+          <tr><td style="padding:8px;border:1px solid #e5e7eb;">📧 Emails ce mois</td><td style="padding:8px;border:1px solid #e5e7eb;">${monthEmails} / ${EMAILS_MONTHLY_LIMIT} (${emailPercent}%)</td></tr>
+          <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">📄 Documents Firestore</td><td style="padding:8px;border:1px solid #e5e7eb;">~${totalDocs}</td></tr>
         </table>
         <p style="color:#9ca3af;font-size:11px;margin-top:16px;">Seuils free tier Blaze : 50k reads/jour, 20k writes/jour, 5 GB storage, 3000 emails/mois</p>
       `
@@ -574,7 +570,7 @@ export const dailySupervision = onSchedule(
       })
       await incrementEmailCounter()
 
-      console.log(`Supervision envoyee : ${totalUsers} users, ${pendingSnap.size} pending, ${storageSizeMB.toFixed(1)} MB`)
+      console.log(`Supervision envoyee : ${totalUsers} users, ${storageSizeMB.toFixed(1)} MB`)
     } catch (error) {
       console.error('Erreur dailySupervision:', error)
     }
