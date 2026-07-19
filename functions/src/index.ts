@@ -498,175 +498,163 @@ export const onExpenseUpdated = onDocumentUpdated(
   }
 )
 /**
- * Rapport quotidien : resume des depenses en attente et stats
- * Envoye tous les jours a 8h (Europe/Paris) aux managers
+ * Rapport quotidien simplifie : statut environnement + stockage + seuils Blaze
+ * Envoye tous les jours a 8h (Europe/Paris) a l admin
  */
 export const dailySupervision = onSchedule(
   { schedule: '0 8 * * *', timeZone: 'Europe/Paris', region: 'europe-west1' },
   async () => {
     try {
-      const pendingSnap = await db.collection('expenses').where('status', '==', 'pending').get()
-      const managersSnap = await db.collection('users').where('role', '==', 'manager').get()
-
-      if (managersSnap.empty) {
-        console.log('Aucun manager trouve, supervision ignoree')
-        return
-      }
-
-      // Stats du jour precedent
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
-      const yesterdayEnd = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59)
-
-      const yesterdayExpenses = await db.collection('expenses')
-        .where('createdAt', '>=', yesterdayStart)
-        .where('createdAt', '<=', yesterdayEnd)
-        .get()
-
-      const totalYesterday = yesterdayExpenses.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0)
-
-      // Stats globales en attente
-      const totalPending = pendingSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0)
-
-      // Depenses en attente depuis plus de 48h
+      const projectId = process.env.GCLOUD_PROJECT || 'mykrew-dev'
       const now = new Date()
-      const threshold48h = new Date(now.getTime() - 48 * 60 * 60 * 1000)
-      const oldPending = pendingSnap.docs.filter((doc) => {
-        const createdAt = doc.data().createdAt?.toDate?.()
-        return createdAt && createdAt < threshold48h
-      })
 
-      const body = `
-        <p style="color:#cbd5e1;">Voici le rapport quotidien de MyKrew Spend.</p>
-        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-          <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Depenses en attente</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;font-weight:600;">${pendingSnap.size}</td></tr>
-          <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Montant total en attente</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;font-weight:600;">${totalPending.toFixed(2)} EUR</td></tr>
-          <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">En attente > 48h</td><td style="padding:8px 12px;border:1px solid #363858;color:${oldPending.length > 0 ? '#fbbf24' : '#4ade80'};font-weight:600;">${oldPending.length}</td></tr>
-          <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Soumises hier</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${yesterdayExpenses.size} (${totalYesterday.toFixed(2)} EUR)</td></tr>
+      // Utilisateurs actifs
+      const usersSnap = await db.collection('users').where('isActive', '==', true).get()
+      const totalUsers = usersSnap.size
+
+      // Depenses en attente
+      const pendingSnap = await db.collection('expenses').where('status', '==', 'pending').get()
+
+      // Stockage (justificatifs)
+      let storageSizeMB = 0
+      let storageFileCount = 0
+      try {
+        const bucket = admin.storage().bucket()
+        const [files] = await bucket.getFiles({ prefix: 'expenses/' })
+        storageFileCount = files.length
+        storageSizeMB = files.reduce((acc, f) => acc + (Number(f.metadata?.size || 0) / (1024 * 1024)), 0)
+      } catch { /* Storage pas encore configure */ }
+
+      // Emails envoyes ce mois
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const emailDoc = await db.collection('emailStats').doc(monthKey).get()
+      const monthEmails = emailDoc.exists ? emailDoc.data()?.count || 0 : 0
+
+      // Documents Firestore (estimation)
+      const expensesCount = (await db.collection('expenses').count().get()).data().count
+      const logsCount = (await db.collection('activityLogs').count().get()).data().count
+      const totalDocs = totalUsers + expensesCount + logsCount
+
+      // Seuils Blaze (free tier)
+      const FIRESTORE_FREE_READS = 50000 // /jour
+      const FIRESTORE_FREE_WRITES = 20000 // /jour
+      const STORAGE_FREE_GB = 5
+      const EMAILS_MONTHLY_LIMIT = 3000 // Resend free
+
+      const storagePercent = Math.round((storageSizeMB / (STORAGE_FREE_GB * 1024)) * 100)
+      const emailPercent = Math.round((monthEmails / EMAILS_MONTHLY_LIMIT) * 100)
+
+      const alerts: string[] = []
+      if (storagePercent > 70) alerts.push(`📁 Stockage a ${storagePercent}% (${storageSizeMB.toFixed(1)} MB / ${STORAGE_FREE_GB} GB)`)
+      if (emailPercent > 70) alerts.push(`📧 Emails a ${emailPercent}% (${monthEmails} / ${EMAILS_MONTHLY_LIMIT})`)
+      if (totalUsers >= 35) alerts.push(`👥 ${totalUsers}/40 utilisateurs`)
+
+      const statusEmoji = alerts.length > 0 ? '⚠️' : '✅'
+
+      const html = `
+        <h2>${statusEmoji} MyKrew Spend [${projectId}] — Statut</h2>
+        <p>${now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        ${alerts.length > 0 ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin:12px 0;"><strong>Alertes :</strong><ul>${alerts.map(a => `<li>${a}</li>`).join('')}</ul></div>` : ''}
+        <table style="border-collapse:collapse;width:100%;max-width:450px;">
+          <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">🟢 Environnement</td><td style="padding:8px;border:1px solid #e5e7eb;"><strong>UP</strong> — spend.mykrew.pro</td></tr>
+          <tr><td style="padding:8px;border:1px solid #e5e7eb;">👥 Utilisateurs actifs</td><td style="padding:8px;border:1px solid #e5e7eb;">${totalUsers} / 40</td></tr>
+          <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">⏳ Depenses en attente</td><td style="padding:8px;border:1px solid #e5e7eb;">${pendingSnap.size}</td></tr>
+          <tr><td style="padding:8px;border:1px solid #e5e7eb;">📁 Stockage</td><td style="padding:8px;border:1px solid #e5e7eb;">${storageSizeMB.toFixed(1)} MB (${storageFileCount} fichiers) — ${storagePercent}%</td></tr>
+          <tr style="background:#f3f4f6;"><td style="padding:8px;border:1px solid #e5e7eb;">📧 Emails ce mois</td><td style="padding:8px;border:1px solid #e5e7eb;">${monthEmails} / ${EMAILS_MONTHLY_LIMIT} (${emailPercent}%)</td></tr>
+          <tr><td style="padding:8px;border:1px solid #e5e7eb;">📄 Documents Firestore</td><td style="padding:8px;border:1px solid #e5e7eb;">~${totalDocs}</td></tr>
         </table>
-        ${oldPending.length > 0 ? '<p style="color:#fbbf24;font-size:13px;">⚠️ Certaines depenses attendent une decision depuis plus de 48h.</p>' : '<p style="color:#4ade80;font-size:13px;">✓ Toutes les depenses sont traitees dans les delais.</p>'}
+        <p style="color:#9ca3af;font-size:11px;margin-top:16px;">Seuils free tier Blaze : 50k reads/jour, 20k writes/jour, 5 GB storage, 3000 emails/mois</p>
       `
 
-      for (const managerDoc of managersSnap.docs) {
-        const manager = managerDoc.data()
-        if (!manager.email) continue
-
-        await getResend().emails.send({
-          from: senderEmail.value(),
-          to: manager.email,
-          subject: `MyKrew Spend -- Rapport quotidien : ${pendingSnap.size} depense(s) en attente`,
-          html: emailTemplate('Rapport quotidien', body, appUrl.value(), 'Ouvrir MyKrew Spend'),
-        })
-        await incrementEmailCounter()
-      }
-
-      await logActivity('daily_supervision', {
-        pendingCount: pendingSnap.size,
-        totalPending,
-        oldPendingCount: oldPending.length,
-        yesterdayCount: yesterdayExpenses.size,
+      await getResend().emails.send({
+        from: senderEmail.value(),
+        to: adminEmail.value(),
+        subject: `${statusEmoji} Spend [${projectId}] — ${now.toLocaleDateString('fr-FR')}`,
+        html,
       })
+      await incrementEmailCounter()
 
-      console.log(`Supervision quotidienne envoyee : ${pendingSnap.size} en attente, ${oldPending.length} > 48h`)
+      console.log(`Supervision envoyee : ${totalUsers} users, ${pendingSnap.size} pending, ${storageSizeMB.toFixed(1)} MB`)
     } catch (error) {
       console.error('Erreur dailySupervision:', error)
     }
   }
 )
 /**
- * Backup quotidien de toutes les collections Firestore vers Cloud Storage
+ * Backup quotidien Firestore via API REST (comme Leave et Plan)
  * Execute tous les jours a 3h du matin
+ * Prerequis : bucket gs://mykrew-dev-backups existant
  */
 export const dailyBackup = onSchedule(
   { schedule: '0 3 * * *', timeZone: 'Europe/Paris', region: 'europe-west1' },
   async () => {
+    const projectId = process.env.GCLOUD_PROJECT || 'mykrew-dev'
+    const now = new Date()
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const bucketUri = `gs://${projectId}-backups/${dateStr}`
+
     try {
-      const projectId = process.env.GCLOUD_PROJECT || 'mykrew-spend'
-      const bucket = admin.storage().bucket(`${projectId}-backups`)
-      const now = new Date()
-      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-      const backupPath = `backups/${dateStr}`
+      const { GoogleAuth } = await import('google-auth-library')
+      const gAuth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] })
+      const client = await gAuth.getClient()
 
-      const collections = ['users', 'expenses', 'emailStats', 'activityLogs', 'settings']
-      const stats: Record<string, number> = {}
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default):exportDocuments`
 
-      for (const collectionName of collections) {
-        const snap = await db.collection(collectionName).get()
-        const data = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
+      const response = await client.request({
+        url,
+        method: 'POST',
+        data: {
+          outputUriPrefix: bucketUri,
+          collectionIds: [],
+        },
+      })
 
-        const fileName = `${backupPath}/${collectionName}.json`
-        const file = bucket.file(fileName)
-        await file.save(JSON.stringify(data, null, 2), {
-          contentType: 'application/json',
-          metadata: {
-            backupDate: dateStr,
-            collection: collectionName,
-            documentCount: String(data.length),
-          },
-        })
+      console.log(`Backup Firestore exporte vers ${bucketUri}`, response.data)
+      await logActivity('daily_backup_success', { bucket: bucketUri, date: dateStr })
 
-        stats[collectionName] = data.length
-      }
+      // Rotation : supprimer les backups de plus de 30 jours
+      try {
+        const { Storage } = await import('@google-cloud/storage')
+        const gStorage = new Storage()
+        const backupBucket = gStorage.bucket(`${projectId}-backups`)
+        const [files] = await backupBucket.getFiles()
 
-      // Nettoyage des backups de plus de 30 jours
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-      const oldDateStr = `${thirtyDaysAgo.getFullYear()}-${String(thirtyDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgo.getDate()).padStart(2, '0')}`
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        let deletedCount = 0
+        const prefixesToDelete = new Set<string>()
 
-      const [files] = await bucket.getFiles({ prefix: 'backups/' })
-      let deletedCount = 0
-      for (const file of files) {
-        const fileDateMatch = file.name.match(/backups\/(\d{4}-\d{2}-\d{2})\//)
-        if (fileDateMatch && fileDateMatch[1] < oldDateStr) {
-          await file.delete()
-          deletedCount++
+        for (const file of files) {
+          const match = file.name.match(/^(\d{4}-\d{2}-\d{2})\//)
+          if (match) {
+            const fileDate = new Date(match[1] + 'T00:00:00Z')
+            if (fileDate < thirtyDaysAgo) prefixesToDelete.add(match[1])
+          }
         }
+
+        for (const prefix of prefixesToDelete) {
+          const [oldFiles] = await backupBucket.getFiles({ prefix: `${prefix}/` })
+          for (const f of oldFiles) { await f.delete(); deletedCount++ }
+        }
+
+        if (deletedCount > 0) {
+          console.log(`Rotation : ${deletedCount} fichier(s) supprime(s)`)
+        }
+      } catch (rotationError) {
+        console.error('Erreur rotation backups:', rotationError)
       }
-
-      await logActivity('daily_backup', {
-        date: dateStr,
-        stats,
-        totalDocuments: Object.values(stats).reduce((a, b) => a + b, 0),
-        oldBackupsDeleted: deletedCount,
-      })
-
-      // Email de confirmation a l admin
-      await getResend().emails.send({
-        from: senderEmail.value(),
-        to: adminEmail.value(),
-        subject: `MyKrew Spend -- Backup ${dateStr} termine`,
-        html: emailTemplate(
-          'Backup quotidien termine',
-          `<p style="color:#cbd5e1;">Le backup du ${dateStr} a ete effectue avec succes.</p>
-          <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-            ${Object.entries(stats).map(([col, count]) => `<tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">${col}</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${count} documents</td></tr>`).join('')}
-            <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Anciens backups supprimes</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${deletedCount}</td></tr>
-          </table>`
-        ),
-      })
-      await incrementEmailCounter()
-
-      console.log(`Backup termine : ${JSON.stringify(stats)}, ${deletedCount} anciens fichiers supprimes`)
     } catch (error) {
       console.error('Erreur dailyBackup:', error)
+      await logActivity('daily_backup_failed', { date: dateStr, error: String(error) })
 
-      // Email d alerte en cas d echec
       try {
         await getResend().emails.send({
           from: senderEmail.value(),
           to: adminEmail.value(),
-          subject: 'MyKrew Spend -- ERREUR Backup quotidien',
-          html: emailTemplate(
-            'Erreur backup quotidien',
-            `<p style="color:#f87171;">Le backup quotidien a echoue.</p><p style="color:#94a3b8;font-size:13px;">${String(error)}</p>`
-          ),
+          subject: `❌ Spend [${projectId}] — Echec backup ${dateStr}`,
+          html: emailTemplate('Erreur backup', `<p style="color:#f87171;">Le backup du ${dateStr} a echoue.</p><p style="color:#94a3b8;font-size:13px;">${String(error)}</p>`),
         })
       } catch (emailError) {
-        console.error('Impossible d envoyer l alerte email:', emailError)
+        console.error('Impossible d envoyer l alerte:', emailError)
       }
     }
   }
