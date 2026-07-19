@@ -128,8 +128,52 @@ export const createEmployee = onCall({ region: 'europe-west1' }, async (request)
     throw new HttpsError('unauthenticated', 'Non authentifie')
   }
 
+  // Check role: try Firestore first, then custom claims as fallback
+  let isManager = false
   const callerDoc = await db.collection('users').doc(request.auth.uid).get()
-  if (!callerDoc.exists || callerDoc.data()?.role !== 'manager') {
+  if (callerDoc.exists && callerDoc.data()?.role === 'manager') {
+    isManager = true
+  } else {
+    // Fallback: check custom claims (first user may not have a Firestore doc yet)
+    const callerRecord = await admin.auth().getUser(request.auth.uid)
+    if (callerRecord.customClaims?.role === 'manager') {
+      isManager = true
+      // Auto-create the missing Firestore doc for this manager
+      if (!callerDoc.exists) {
+        const nameParts = (callerRecord.displayName || '').split(' ')
+        await db.collection('users').doc(request.auth.uid).set({
+          email: callerRecord.email || '',
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          role: 'manager',
+          isActive: true,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
+    } else {
+      // Last resort: if this is the ONLY user in the system, they are the manager
+      const allUsers = await db.collection('users').get()
+      if (allUsers.empty) {
+        isManager = true
+        // Create manager doc
+        const nameParts = (callerRecord.displayName || '').split(' ')
+        await db.collection('users').doc(request.auth.uid).set({
+          email: callerRecord.email || '',
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          role: 'manager',
+          isActive: true,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+        // Set custom claim too
+        await admin.auth().setCustomUserClaims(request.auth.uid, { role: 'manager' })
+      }
+    }
+  }
+
+  if (!isManager) {
     throw new HttpsError('permission-denied', 'Seuls les responsables peuvent ajouter des employes')
   }
 
@@ -812,7 +856,7 @@ export const addComment = onCall({ region: 'europe-west1' }, async (request) => 
 })
 
 /**
- * Rappel automatique : email aux managers si des notes sont en attente > 72h
+ * Rappel automatique : email aux managers si des notes sont en attente > 10 jours
  * Execute tous les jours a 9h30 (Europe/Paris)
  */
 export const pendingReminder = onSchedule(
@@ -820,7 +864,7 @@ export const pendingReminder = onSchedule(
   async () => {
     try {
       const now = new Date()
-      const threshold72h = new Date(now.getTime() - 72 * 60 * 60 * 1000)
+      const threshold10d = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000)
 
       const pendingSnap = await db.collection('expenses')
         .where('status', '==', 'pending')
@@ -828,11 +872,11 @@ export const pendingReminder = onSchedule(
 
       const oldPending = pendingSnap.docs.filter(doc => {
         const createdAt = doc.data().createdAt?.toDate?.()
-        return createdAt && createdAt < threshold72h
+        return createdAt && createdAt < threshold10d
       })
 
       if (oldPending.length === 0) {
-        console.log('Aucune note en attente > 72h, pas de rappel')
+        console.log('Aucune note en attente > 10 jours, pas de rappel')
         return
       }
 
@@ -844,16 +888,16 @@ export const pendingReminder = onSchedule(
       const expensesList = oldPending.slice(0, 5).map(doc => {
         const d = doc.data()
         const createdAt = d.createdAt?.toDate?.()
-        const hoursAgo = createdAt ? Math.round((now.getTime() - createdAt.getTime()) / (60 * 60 * 1000)) : 0
+        const daysAgo = createdAt ? Math.round((now.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000)) : 0
         return `<tr>
           <td style="padding:6px 12px;border:1px solid #363858;color:#f1f5f9;">${d.employeeName || 'Inconnu'}</td>
           <td style="padding:6px 12px;border:1px solid #363858;color:#f1f5f9;">${(d.amountTTC || d.amount || 0).toFixed(2)} EUR</td>
-          <td style="padding:6px 12px;border:1px solid #363858;color:#fbbf24;">${hoursAgo}h</td>
+          <td style="padding:6px 12px;border:1px solid #363858;color:#fbbf24;">${daysAgo}j</td>
         </tr>`
       }).join('')
 
       const body = `
-        <p style="color:#fbbf24;font-weight:600;">⚠️ ${oldPending.length} note(s) de frais en attente depuis plus de 72h</p>
+        <p style="color:#fbbf24;font-weight:600;">⚠️ ${oldPending.length} note(s) de frais en attente depuis plus de 10 jours</p>
         <p style="color:#cbd5e1;">Montant total : <strong style="color:#f1f5f9;">${totalAmount.toFixed(2)} EUR</strong></p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0;">
           <tr>
@@ -873,10 +917,19 @@ export const pendingReminder = onSchedule(
         await getResend().emails.send({
           from: senderEmail.value(),
           to: manager.email,
-          subject: `MyKrew Spend -- ⚠️ ${oldPending.length} note(s) en attente > 72h`,
+          subject: `MyKrew Spend -- ⚠️ ${oldPending.length} note(s) en attente > 10 jours`,
           html: emailTemplate('Rappel : notes en attente', body, appUrl.value(), 'Traiter maintenant'),
         })
         await incrementEmailCounter()
+      }
+
+      // Push notification aux managers
+      for (const managerDoc of managersSnap.docs) {
+        await sendPushNotification(
+          managerDoc.id,
+          '⚠️ Notes en attente',
+          `${oldPending.length} note(s) de frais en attente depuis plus de 10 jours (${totalAmount.toFixed(2)} EUR)`
+        )
       }
 
       await logActivity('pending_reminder', {
@@ -884,7 +937,7 @@ export const pendingReminder = onSchedule(
         totalAmount,
       })
 
-      console.log(`Rappel envoye : ${oldPending.length} notes en attente > 72h`)
+      console.log(`Rappel envoye : ${oldPending.length} notes en attente > 10 jours`)
     } catch (error) {
       console.error('Erreur pendingReminder:', error)
     }

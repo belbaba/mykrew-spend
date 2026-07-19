@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth'
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, updatePassword, User } from 'firebase/auth'
 import { collection, onSnapshot, orderBy, query, where, addDoc, updateDoc, doc, getDoc, getDocs, setDoc, Timestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -152,6 +152,10 @@ function AddEmployeeForm({ onBack }: AddEmployeeProps) {
     if (password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caracteres.'); return }
     setIsSubmitting(true)
     try {
+      // Force refresh du token pour s'assurer qu'il est valide pour ce projet
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true)
+      }
       const createEmployee = httpsCallable(functions, 'createEmployee')
       await createEmployee({ email: email.toLowerCase(), password, firstName: firstName.trim(), lastName: lastName.trim(), role, department: department.trim() })
       setSuccess(true)
@@ -227,7 +231,6 @@ function TeamList({ onBack, onAddEmployee, onViewEmployeeExpenses }: { onBack: (
 
   return (
     <div className="p-4 space-y-4">
-      <button onClick={onBack} className="text-indigo-500 text-sm font-medium">← Retour</button>
       <div className="flex items-center justify-between">
         <div><h1 className="text-xl font-bold text-gray-900">Equipe</h1><p className="text-sm text-gray-500">{members.length} membre(s)</p></div>
         <button onClick={onAddEmployee} className="bg-indigo-500 text-white text-sm font-medium px-3 py-2 rounded-lg hover:bg-indigo-600">+ Ajouter</button>
@@ -529,6 +532,64 @@ function ActivityTimeline({ expenseId }: { expenseId: string }) {
   )
 }
 
+// === Settings Page ================================================================
+function SettingsPage({ userName, userEmail, onBack }: { userName: string; userEmail: string; onBack: () => void }) {
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(''); setSuccess('')
+    if (newPassword.length < 8) { setError('Le mot de passe doit contenir au moins 8 caracteres'); return }
+    if (newPassword !== confirmPassword) { setError('Les mots de passe ne correspondent pas'); return }
+    setIsLoading(true)
+    try {
+      const user = auth.currentUser
+      if (!user) throw new Error('Non connecte')
+      await updatePassword(user, newPassword)
+      setSuccess('Mot de passe modifie avec succes !')
+      setNewPassword(''); setConfirmPassword('')
+    } catch {
+      setError('Erreur. Deconnectez-vous et reconnectez-vous avant de reessayer.')
+    } finally { setIsLoading(false) }
+  }
+
+  return (
+    <div className="min-h-screen">
+      <div className="px-4 pt-6 pb-4 bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="text-indigo-500 text-sm font-medium">← Retour</button>
+          <h1 className="text-xl font-bold text-gray-900">Parametres</h1>
+        </div>
+      </div>
+      <div className="p-4 space-y-6">
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <p className="text-sm text-gray-400 mb-1">Compte</p>
+          <p className="font-medium text-gray-900">{userName}</p>
+          <p className="text-sm text-gray-500">{userEmail}</p>
+        </div>
+        <form onSubmit={handleChangePassword} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm space-y-4">
+          <h2 className="text-base font-semibold text-gray-900">Changer le mot de passe</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none" placeholder="Minimum 8 caracteres" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmer</label>
+            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none" placeholder="Retapez le mot de passe" required />
+          </div>
+          {error && <div className="bg-red-50 text-red-700 text-sm p-3 rounded-xl">{error}</div>}
+          {success && <div className="bg-green-50 text-green-700 text-sm p-3 rounded-xl">{success}</div>}
+          <button type="submit" disabled={isLoading} className="w-full bg-indigo-500 text-white py-2.5 rounded-xl font-medium disabled:opacity-50 hover:bg-indigo-600">{isLoading ? 'Modification...' : 'Modifier le mot de passe'}</button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // === Login Page ===================================================================
 function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('')
@@ -647,8 +708,8 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel, 
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-10" /><h2 className="text-xl font-bold text-gray-900">{duplicateFrom ? 'Dupliquer' : 'Nouvelle depense'}</h2></div>
-        <button onClick={onCancel} className="text-gray-400 hover:text-gray-900 text-sm">Annuler</button>
+        <button onClick={onCancel} className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-10" /><h2 className="text-xl font-bold text-gray-900">{duplicateFrom ? 'Dupliquer' : 'Nouvelle depense'}</h2></button>
+        <button onClick={onCancel} className="text-indigo-500 hover:text-indigo-700 text-sm font-medium">← Retour</button>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div><label className="block text-sm text-gray-400 mb-1">Montant TTC (EUR) *</label><input type="number" step="0.01" min="0.01" value={amountTTC} onChange={e => setAmountTTC(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-indigo-500 focus:outline-none" placeholder="0.00" required /></div>
@@ -691,6 +752,7 @@ function EmployeeView({ userId, userName, onLogout }: { userId: string; userName
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [duplicateFrom, setDuplicateFrom] = useState<Expense | null>(null)
   const [showStats, setShowStats] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
     const q = query(collection(db, 'expenses'), where('employeeId', '==', userId), orderBy('createdAt', 'desc'))
@@ -714,21 +776,28 @@ function EmployeeView({ userId, userName, onLogout }: { userId: string; userName
     return stats
   }
 
+  if (showSettings) {
+    return <SettingsPage userName={userName} userEmail={auth.currentUser?.email || ''} onBack={() => setShowSettings(false)} />
+  }
+
   if (showForm) {
     return <div className="min-h-screen"><ExpenseForm employeeId={userId} employeeName={userName} isManager={false} onSubmit={() => { setShowForm(false); setDuplicateFrom(null) }} onCancel={() => { setShowForm(false); setDuplicateFrom(null) }} duplicateFrom={duplicateFrom} /></div>
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-6 pb-4 bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <div><div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-14" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div><p className="text-gray-400 text-sm">{userName}</p></div>
+          <button onClick={() => { setShowForm(false); setShowStats(false) }} className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-14" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></button>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowStats(!showStats)} className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-500">{showStats ? 'Liste' : '📊'}</button>
+            <button onClick={() => setShowSettings(true)} className="p-2 text-gray-400 hover:text-indigo-500 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
             <button onClick={onLogout} className="text-gray-400 hover:text-gray-900 text-sm px-3 py-1 rounded-lg border border-gray-200">Deconnexion</button>
           </div>
         </div>
+        <p className="text-gray-400 text-sm mt-1">{userName}</p>
       </div>
 
       <div className="px-4 mb-4 grid grid-cols-2 gap-3">
@@ -793,19 +862,141 @@ function EmployeeView({ userId, userName, onLogout }: { userId: string; userName
         </div>
       )}
 
-      <button onClick={() => setShowForm(true)} className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-500/30 active:scale-95 transition-transform bg-indigo-500 hover:bg-indigo-600">+</button>
+      <button onClick={() => setShowForm(true)} className="fixed bottom-20 right-6 w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-500/30 active:scale-95 transition-transform bg-indigo-500 hover:bg-indigo-600">+</button>
+
+      {/* Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-200/50 px-2 py-1 z-20">
+        <div className="max-w-lg mx-auto flex justify-around">
+          <button onClick={() => setShowStats(false)} className={`flex flex-col items-center gap-0.5 text-xs font-medium py-2 px-3 rounded-lg transition-colors ${!showStats ? 'text-indigo-600' : 'text-gray-400'}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <span>Depenses</span>
+          </button>
+          <button onClick={() => setShowStats(true)} className={`flex flex-col items-center gap-0.5 text-xs font-medium py-2 px-3 rounded-lg transition-colors ${showStats ? 'text-indigo-600' : 'text-gray-400'}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            <span>Statistiques</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  )
+}
+
+// === Expense Calendar View ========================================================
+function ExpenseCalendar({ expenses, onViewExpense }: { expenses: Expense[]; onViewExpense: (exp: Expense) => void }) {
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const year = currentMonth.getFullYear()
+  const month = currentMonth.getMonth()
+  const firstDay = new Date(year, month, 1).getDay() // 0=Sunday
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1 // Monday-based
+
+  const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1))
+  const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1))
+
+  // Group expenses by day
+  const expensesByDay: Record<number, Expense[]> = {}
+  expenses.forEach(exp => {
+    const d = exp.date instanceof Date ? exp.date : new Date()
+    if (d.getMonth() === month && d.getFullYear() === year) {
+      const day = d.getDate()
+      if (!expensesByDay[day]) expensesByDay[day] = []
+      expensesByDay[day].push(exp)
+    }
+  })
+
+  const monthTotal = expenses.filter(e => { const d = e.date instanceof Date ? e.date : new Date(); return d.getMonth() === month && d.getFullYear() === year }).reduce((s, e) => s + e.amountTTC, 0)
+  const monthCount = expenses.filter(e => { const d = e.date instanceof Date ? e.date : new Date(); return d.getMonth() === month && d.getFullYear() === year }).length
+
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+
+  const dayStatusColor = (day: number): string => {
+    const dayExpenses = expensesByDay[day]
+    if (!dayExpenses || dayExpenses.length === 0) return ''
+    const hasPending = dayExpenses.some(e => e.status === 'pending')
+    const hasApproved = dayExpenses.some(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status))
+    if (hasPending) return 'bg-yellow-400'
+    if (hasApproved) return 'bg-green-400'
+    return 'bg-gray-400'
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Month navigator */}
+      <div className="flex items-center justify-between">
+        <button onClick={prevMonth} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100">←</button>
+        <div className="text-center">
+          <h2 className="text-lg font-bold text-gray-900 capitalize">{currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</h2>
+          <p className="text-xs text-gray-400">{monthCount} depense(s) • {monthTotal.toFixed(2)} EUR</p>
+        </div>
+        <button onClick={nextMonth} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100">→</button>
+      </div>
+
+      {/* Calendar grid */}
+      <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-2">
+        <div className="grid grid-cols-7 gap-0.5 mb-1">
+          {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
+            <div key={i} className="text-center text-[10px] font-medium text-gray-400 py-0.5">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-0.5">
+          {Array.from({ length: startOffset }).map((_, i) => <div key={`empty-${i}`} />)}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1
+            const hasExpenses = !!expensesByDay[day]
+            const isSelected = selectedDay === day
+            const isToday = day === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear()
+            const dotColor = dayStatusColor(day)
+            return (
+              <button key={day} onClick={() => setSelectedDay(isSelected ? null : day)} className={`relative w-full h-8 flex flex-col items-center justify-center rounded text-xs transition-colors ${isSelected ? 'bg-indigo-500 text-white' : isToday ? 'bg-indigo-50 text-indigo-700 font-bold' : hasExpenses ? 'bg-gray-50 text-gray-900 font-medium' : 'text-gray-500'}`}>
+                {day}
+                {dotColor && <span className={`absolute bottom-0.5 w-1 h-1 rounded-full ${dotColor}`} />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-gray-400">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400" /> En attente</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400" /> Approuvee</span>
+      </div>
+
+      {/* Selected day expenses */}
+      {selectedDay && expensesByDay[selectedDay] && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-gray-700">{selectedDay} {currentMonth.toLocaleDateString('fr-FR', { month: 'long' })}</p>
+          {expensesByDay[selectedDay].map(exp => (
+            <div key={exp.id} className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm" onClick={() => onViewExpense(exp)}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2"><StatusBadge status={exp.status} /><CategoryBadge category={exp.category} /></div>
+                  <p className="text-gray-900 text-sm font-medium mt-0.5">{exp.employeeName}</p>
+                  <p className="text-gray-400 text-xs truncate">{exp.description}</p>
+                </div>
+                <p className="text-gray-900 font-bold text-sm ml-2">{exp.amountTTC.toFixed(2)} EUR</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {selectedDay && !expensesByDay[selectedDay] && (
+        <p className="text-center text-sm text-gray-400 py-4">Aucune depense ce jour</p>
+      )}
     </div>
   )
 }
 
 // === Manager View =================================================================
-type ManagerTab = 'dashboard' | 'pending' | 'all' | 'new' | 'team' | 'add-employee' | 'employee-expenses' | 'budgets'
+type ManagerTab = 'home' | 'requests' | 'calendar' | 'team' | 'new' | 'add-employee' | 'employee-expenses' | 'budgets' | 'settings'
 
 function ManagerView({ userId, userName, onLogout }: { userId: string; userName: string; onLogout: () => void }) {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [budgetLimits, setBudgetLimits] = useState<BudgetLimit[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<ManagerTab>('dashboard')
+  const [activeTab, setActiveTab] = useState<ManagerTab>('home')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<ExpenseStatus | 'all'>('all')
   const [filterCategory, setFilterCategory] = useState<ExpenseCategory | 'all'>('all')
@@ -878,39 +1069,46 @@ function ManagerView({ userId, userName, onLogout }: { userId: string; userName:
   const lastMonth = (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return expenses.filter(e => { const ed = e.date instanceof Date ? e.date : new Date(); return ed.getMonth() === d.getMonth() && ed.getFullYear() === d.getFullYear() }).filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status)).reduce((s, e) => s + e.amountTTC, 0) })()
   const byCategory = Object.keys(CATEGORY_LABELS).map(cat => ({ category: cat as ExpenseCategory, total: thisMonth.filter(e => e.category === cat).reduce((s, e) => s + e.amountTTC, 0) })).filter(c => c.total > 0)
 
-  // Sub-views
-  if (activeTab === 'new') return <div className="min-h-screen"><ExpenseForm employeeId={userId} employeeName={userName} isManager={true} onSubmit={() => { setActiveTab('dashboard'); setDuplicateFrom(null) }} onCancel={() => { setActiveTab('dashboard'); setDuplicateFrom(null) }} duplicateFrom={duplicateFrom} /></div>
+  // Sub-views (fullscreen overlays)
+  if (activeTab === 'new') return <div className="min-h-screen"><ExpenseForm employeeId={userId} employeeName={userName} isManager={true} onSubmit={() => { setActiveTab('home'); setDuplicateFrom(null) }} onCancel={() => { setActiveTab('home'); setDuplicateFrom(null) }} duplicateFrom={duplicateFrom} /></div>
   if (activeTab === 'add-employee') return <div className="min-h-screen"><AddEmployeeForm onBack={() => setActiveTab('team')} /></div>
-  if (activeTab === 'team') return <div className="min-h-screen"><TeamList onBack={() => setActiveTab('dashboard')} onAddEmployee={() => setActiveTab('add-employee')} onViewEmployeeExpenses={emp => { setSelectedEmployee(emp); setActiveTab('employee-expenses') }} /></div>
   if (activeTab === 'employee-expenses' && selectedEmployee) return <div className="min-h-screen"><EmployeeExpensesView employee={selectedEmployee} onBack={() => setActiveTab('team')} /></div>
-  if (activeTab === 'budgets') return <div className="min-h-screen"><BudgetLimitsView onBack={() => setActiveTab('dashboard')} /></div>
+  if (activeTab === 'budgets') return <div className="min-h-screen"><BudgetLimitsView onBack={() => setActiveTab('home')} /></div>
+  if (activeTab === 'settings') return <SettingsPage userName={userName} userEmail={auth.currentUser?.email || ''} onBack={() => setActiveTab('home')} />
 
   return (
     <div className="min-h-screen pb-20">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
-      <div className="px-4 pt-6 pb-4">
+      
+      {/* Header */}
+      <div className="px-4 pt-6 pb-4 bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <div><div className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-14" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></div><p className="text-gray-400 text-sm">Responsable : {userName}</p></div>
-          <button onClick={onLogout} className="text-gray-400 hover:text-gray-900 text-sm px-3 py-1 rounded-lg border border-gray-200">Deconnexion</button>
+          <button onClick={() => setActiveTab('home')} className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-14" /><h1 className="text-xl font-bold text-gray-900">Spend</h1></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setActiveTab('settings')} className="p-2 text-gray-400 hover:text-indigo-500 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+            <button onClick={onLogout} className="text-gray-400 hover:text-gray-900 text-sm px-3 py-1 rounded-lg border border-gray-200">Deconnexion</button>
+          </div>
         </div>
       </div>
 
-      <div className="px-4 mb-4 flex gap-2 overflow-x-auto">
-        {([{ key: 'dashboard', label: 'Tableau' }, { key: 'pending', label: `A traiter (${pendingExpenses.length})` }, { key: 'all', label: 'Toutes' }, { key: 'team', label: 'Equipe' }, { key: 'budgets', label: 'Plafonds' }, { key: 'new', label: '+ Nouvelle' }] as { key: ManagerTab; label: string }[]).map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'text-white' : 'text-gray-700 hover:text-gray-900'}`} style={activeTab === tab.key ? { backgroundColor: '#6366f1' } : { backgroundColor: '#ffffff', border: '1px solid #e5e7eb' }}>{tab.label}</button>
-        ))}
-      </div>
-
       {loading ? <div className="text-center py-12"><div className="w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin mx-auto" /><p className="text-gray-400 mt-3">Chargement...</p></div> : (<>
-        {/* Dashboard */}
-        {activeTab === 'dashboard' && (
-          <div className="px-4 space-y-4">
+        {/* Home Tab - Dashboard */}
+        {activeTab === 'home' && (
+          <div className="px-4 pt-4 space-y-4">
+            <p className="text-sm text-gray-500">Bonjour, {userName}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm"><p className="text-xs text-gray-400">En attente</p><p className="text-xl font-bold text-[#fbbf24]">{totalPending.toFixed(2)} EUR</p><p className="text-xs text-gray-400">{pendingExpenses.length} depense(s)</p></div>
               <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm"><p className="text-xs text-gray-400">Approuvees (mois)</p><p className="text-xl font-bold text-[#4ade80]">{totalApprovedMonth.toFixed(2)} EUR</p><p className="text-xs text-gray-400">{lastMonth > 0 ? `${lastMonth > totalApprovedMonth ? '↓' : '↑'} vs ${lastMonth.toFixed(0)} EUR mois prec.` : ''}</p></div>
             </div>
             {/* Budget warnings */}
             {Object.keys(CATEGORY_LABELS).map(cat => { const w = getBudgetWarning(cat as ExpenseCategory); return w ? <div key={cat} className="px-3 py-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-yellow-800">{w} — {CATEGORY_LABELS[cat as ExpenseCategory]}</div> : null })}
+            {/* Quick action buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setActiveTab('new')} className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-center hover:bg-indigo-100 transition-colors"><span className="text-2xl block mb-1">💸</span><span className="text-sm font-medium text-indigo-700">Nouvelle depense</span></button>
+              <button onClick={() => setActiveTab('budgets')} className="p-4 rounded-xl bg-violet-50 border border-violet-200 text-center hover:bg-violet-100 transition-colors"><span className="text-2xl block mb-1">📊</span><span className="text-sm font-medium text-violet-700">Plafonds</span></button>
+            </div>
             {/* Category chart */}
             {byCategory.length > 0 && (
               <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
@@ -920,25 +1118,47 @@ function ManagerView({ userId, userName, onLogout }: { userId: string; userName:
                 ))}</div>
               </div>
             )}
+            {/* Last pending expenses */}
             {pendingExpenses.length > 0 && (<div>
-              <div className="flex items-center justify-between mb-2"><p className="text-sm text-gray-400">Dernieres en attente</p><button onClick={() => setActiveTab('pending')} className="text-xs text-indigo-600 hover:underline">Voir tout →</button></div>
+              <div className="flex items-center justify-between mb-2"><p className="text-sm text-gray-400">Dernieres en attente</p><button onClick={() => setActiveTab('requests')} className="text-xs text-indigo-600 hover:underline">Voir tout →</button></div>
               {pendingExpenses.slice(0, 3).map(exp => (<div key={exp.id} className="p-3 rounded-xl mb-2 bg-white border border-gray-200 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-gray-900 text-sm font-medium">{exp.employeeName}</p><p className="text-gray-400 text-xs">{exp.description}</p></div><p className="text-gray-900 font-bold text-sm">{exp.amountTTC.toFixed(2)} EUR</p></div></div>))}
             </div>)}
+            {/* Approved this month */}
+            {(() => { const approved = thisMonth.filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status)); return approved.length > 0 ? (<div><p className="text-sm text-gray-400 mb-2">Approuvees ce mois</p><div className="space-y-2">{approved.slice(0, 5).map(exp => (<div key={exp.id} className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm"><div className="flex items-center justify-between"><div className="flex-1 min-w-0"><div className="flex items-center gap-2"><StatusBadge status={exp.status} /><CategoryBadge category={exp.category} /></div><p className="text-gray-900 text-sm font-medium mt-0.5">{exp.employeeName}</p><p className="text-gray-400 text-xs truncate">{exp.description}</p></div><p className="text-gray-900 font-bold text-sm ml-2">{exp.amountTTC.toFixed(2)} EUR</p></div></div>))}</div></div>) : null })()}
           </div>
         )}
 
-        {/* Pending Tab */}
-        {activeTab === 'pending' && (
-          <div className="px-4 space-y-3">
-            {pendingExpenses.length === 0 ? <div className="text-center py-12"><p className="text-4xl mb-2">✅</p><p className="text-gray-400">Aucune depense en attente</p></div> : (
-              pendingExpenses.map(exp => {
+        {/* Requests Tab - Pending + All expenses with filters */}
+        {activeTab === 'requests' && (
+          <div className="px-4 pt-4">
+            <div className="flex gap-2 mb-4 overflow-x-auto">
+              <button onClick={() => setFilterStatus('pending')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filterStatus === 'pending' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-700 border border-gray-200'}`}>En attente ({pendingExpenses.length})</button>
+              <button onClick={() => setFilterStatus('all')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filterStatus === 'all' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-700 border border-gray-200'}`}>Toutes</button>
+              <button onClick={() => setFilterStatus('approved')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filterStatus === 'approved' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-700 border border-gray-200'}`}>Approuvees</button>
+              <button onClick={() => setFilterStatus('reimbursed')} className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filterStatus === 'reimbursed' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-700 border border-gray-200'}`}>Remboursees</button>
+            </div>
+            <div className="flex gap-2 mb-3">
+              <select value={filterCategory} onChange={e => setFilterCategory(e.target.value as any)} className="flex-1 px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-indigo-500 focus:outline-none">
+                <option value="all">Toutes categories</option>{Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-indigo-500 focus:outline-none" />
+            </div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-gray-400">{filteredExpenses.length} depense(s) • {filteredExpenses.reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR</p>
+              <div className="flex gap-2">
+                <button onClick={exportCSV} className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 border border-indigo-300 hover:bg-indigo-50">📥 CSV</button>
+                <button onClick={() => generatePDF(filteredExpenses, 'Recapitulatif', filterMonth)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 border border-indigo-300 hover:bg-indigo-50">📄 PDF</button>
+              </div>
+            </div>
+            {filteredExpenses.length === 0 ? <div className="text-center py-12"><p className="text-4xl mb-2">✅</p><p className="text-gray-400">Aucune depense</p></div> : (
+              <div className="space-y-3 pb-6">{filteredExpenses.map(exp => {
                 const budgetWarn = getBudgetWarning(exp.category)
                 return (
                 <div key={exp.id} className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1"><StatusBadge status={exp.status} /><CategoryBadge category={exp.category} /></div>
                       <p className="text-gray-900 font-medium text-sm">{exp.employeeName}</p>
-                      <div className="flex items-center gap-2 mt-0.5"><CategoryBadge category={exp.category} /></div>
                       <p className="text-gray-400 text-xs mt-1 truncate">{exp.description}</p>
                       <p className="text-gray-400 text-xs">{exp.location} • {exp.date instanceof Date ? exp.date.toLocaleDateString('fr-FR') : ''}</p>
                       {exp.project && <p className="text-gray-400 text-xs">Projet: {exp.project}</p>}
@@ -948,83 +1168,79 @@ function ManagerView({ userId, userName, onLogout }: { userId: string; userName:
                       <p className="text-gray-900 font-bold">{exp.amountTTC.toFixed(2)} EUR</p>
                       <p className="text-gray-400 text-xs">HT: {(exp.amountHT || 0).toFixed(2)}</p>
                       {exp.receiptUrl && <button onClick={() => setPhotoUrl(exp.receiptUrl!)} className="text-indigo-600 text-xs mt-1 hover:underline">📷 Justificatif</button>}
-                    </div>
-                  </div>
-                  <ExpenseComments expenseId={exp.id} isManager={true} />
-                  {rejectingId === exp.id ? (
-                    <div className="mt-3 space-y-2">
-                      <input type="text" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Motif du refus..." className="w-full px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-sm focus:border-red-400 focus:outline-none" />
-                      <div className="flex gap-2">
-                        <button onClick={() => handleReject(exp.id)} disabled={!rejectionReason.trim()} className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-50">Confirmer refus</button>
-                        <button onClick={() => { setRejectingId(null); setRejectionReason('') }} className="px-4 py-2 rounded-lg text-sm text-gray-400">Annuler</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2 mt-3">
-                      <button onClick={() => handleApprove(exp.id)} className="flex-1 py-2 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30">✓ Approuver</button>
-                      <button onClick={() => setRejectingId(exp.id)} className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30">✕ Refuser</button>
-                    </div>
-                  )}
-                </div>
-              )})
-            )}
-          </div>
-        )}
-
-        {/* All Expenses Tab */}
-        {activeTab === 'all' && (
-          <div className="px-4">
-            <div className="space-y-3 mb-4">
-              <div className="grid grid-cols-3 gap-2">
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-indigo-500 focus:outline-none">
-                  <option value="all">Tous statuts</option><option value="pending">En attente</option><option value="approved">Approuvee</option><option value="rejected">Refusee</option><option value="reimbursed">Remboursee</option><option value="self_approved">Auto-approuvee</option>
-                </select>
-                <select value={filterCategory} onChange={e => setFilterCategory(e.target.value as any)} className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-indigo-500 focus:outline-none">
-                  <option value="all">Categories</option>{Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-                <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-indigo-500 focus:outline-none" />
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-400">{filteredExpenses.length} depense(s) • {filteredExpenses.reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR</p>
-                <div className="flex gap-2">
-                  <button onClick={exportCSV} className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 border border-indigo-300 hover:bg-indigo-50">📥 CSV</button>
-                  <button onClick={() => generatePDF(filteredExpenses, 'Recapitulatif', filterMonth)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 border border-indigo-300 hover:bg-indigo-50">📄 PDF</button>
-                </div>
-              </div>
-            </div>
-            {filteredExpenses.length === 0 ? <div className="text-center py-12"><p className="text-4xl mb-2">🔍</p><p className="text-gray-400">Aucune depense</p></div> : (
-              <div className="space-y-3">{filteredExpenses.map(exp => (
-                <div key={exp.id} className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1"><StatusBadge status={exp.status} /><CategoryBadge category={exp.category} /></div>
-                      <p className="text-gray-900 font-medium text-sm">{exp.employeeName}</p>
-                      <p className="text-gray-400 text-xs truncate">{exp.description}</p>
-                      <p className="text-gray-400 text-xs">{exp.location} • {exp.date instanceof Date ? exp.date.toLocaleDateString('fr-FR') : ''}</p>
-                    </div>
-                    <div className="text-right ml-3">
-                      <p className="text-gray-900 font-bold text-sm">{exp.amountTTC.toFixed(2)} EUR</p>
-                      {exp.receiptUrl && <button onClick={() => setPhotoUrl(exp.receiptUrl!)} className="text-indigo-600 text-xs mt-1 hover:underline">📷</button>}
                       <button onClick={() => { setDuplicateFrom(exp); setActiveTab('new') }} className="block text-gray-400 text-xs mt-1 hover:text-indigo-500">📋 Dupliquer</button>
                     </div>
                   </div>
                   <ExpenseComments expenseId={exp.id} isManager={true} />
                   <ActivityTimeline expenseId={exp.id} />
+                  {exp.status === 'pending' && (
+                    <>
+                      {rejectingId === exp.id ? (
+                        <div className="mt-3 space-y-2">
+                          <input type="text" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Motif du refus..." className="w-full px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-sm focus:border-red-400 focus:outline-none" />
+                          <div className="flex gap-2">
+                            <button onClick={() => handleReject(exp.id)} disabled={!rejectionReason.trim()} className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50">Confirmer refus</button>
+                            <button onClick={() => { setRejectingId(null); setRejectionReason('') }} className="px-4 py-2 rounded-lg text-sm text-gray-400">Annuler</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 mt-3">
+                          <button onClick={() => handleApprove(exp.id)} className="flex-1 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200">✓ Approuver</button>
+                          <button onClick={() => setRejectingId(exp.id)} className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200">✕ Refuser</button>
+                        </div>
+                      )}
+                    </>
+                  )}
                   {exp.status === 'approved' && (
                     <div className="flex gap-2 mt-3">
-                      <button onClick={() => handleReimburse(exp.id)} className="flex-1 py-2 rounded-lg text-xs font-medium bg-indigo-500/20 text-[#a78bfa] hover:bg-indigo-500/30">💰 Remboursee</button>
-                      <button onClick={() => handleDeleteExpense(exp.id)} disabled={deletingExpenseId === exp.id} className="py-2 px-3 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">{deletingExpenseId === exp.id ? '...' : '🗑️'}</button>
+                      <button onClick={() => handleReimburse(exp.id)} className="flex-1 py-2 rounded-lg text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200">💰 Marquer remboursee</button>
+                      <button onClick={() => handleDeleteExpense(exp.id)} disabled={deletingExpenseId === exp.id} className="py-2 px-3 rounded-lg text-xs font-medium bg-red-50 text-red-500 hover:bg-red-100 disabled:opacity-50">{deletingExpenseId === exp.id ? '...' : '🗑️'}</button>
                     </div>
                   )}
                   {['reimbursed', 'self_approved'].includes(exp.status) && (
-                    <button onClick={() => handleDeleteExpense(exp.id)} disabled={deletingExpenseId === exp.id} className="mt-3 w-full py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">{deletingExpenseId === exp.id ? 'Suppression...' : '🗑️ Supprimer'}</button>
+                    <button onClick={() => handleDeleteExpense(exp.id)} disabled={deletingExpenseId === exp.id} className="mt-3 w-full py-2 rounded-lg text-xs font-medium bg-red-50 text-red-500 hover:bg-red-100 disabled:opacity-50">{deletingExpenseId === exp.id ? 'Suppression...' : '🗑️ Supprimer'}</button>
                   )}
                 </div>
-              ))}</div>
+              )})}</div>
             )}
           </div>
         )}
+
+        {/* Calendar Tab */}
+        {activeTab === 'calendar' && (
+          <div className="px-4 pt-4">
+            <ExpenseCalendar expenses={expenses} onViewExpense={(exp) => { setPhotoUrl(exp.receiptUrl || null) }} />
+          </div>
+        )}
+
+        {/* Team Tab */}
+        {activeTab === 'team' && (
+          <div className="pt-2"><TeamList onBack={() => {}} onAddEmployee={() => setActiveTab('add-employee')} onViewEmployeeExpenses={emp => { setSelectedEmployee(emp); setActiveTab('employee-expenses') }} /></div>
+        )}
       </>)}
+
+      {/* Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-200/50 px-2 py-1 z-20">
+        <div className="max-w-lg mx-auto flex justify-around">
+          <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-0.5 text-xs font-medium py-2 px-3 rounded-lg transition-colors ${activeTab === 'home' ? 'text-indigo-600' : 'text-gray-400'}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            <span>Accueil</span>
+          </button>
+          <button onClick={() => { setActiveTab('requests'); setFilterStatus('pending') }} className={`flex flex-col items-center gap-0.5 text-xs font-medium py-2 px-3 rounded-lg transition-colors relative ${activeTab === 'requests' ? 'text-indigo-600' : 'text-gray-400'}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+            <span>Demandes</span>
+            {pendingExpenses.length > 0 && <span className="absolute -top-0.5 right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">{pendingExpenses.length}</span>}
+          </button>
+          <button onClick={() => setActiveTab('calendar')} className={`flex flex-col items-center gap-0.5 text-xs font-medium py-2 px-3 rounded-lg transition-colors ${activeTab === 'calendar' ? 'text-indigo-600' : 'text-gray-400'}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            <span>Calendrier</span>
+          </button>
+          <button onClick={() => setActiveTab('team')} className={`flex flex-col items-center gap-0.5 text-xs font-medium py-2 px-3 rounded-lg transition-colors ${activeTab === 'team' ? 'text-indigo-600' : 'text-gray-400'}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span>Equipe</span>
+          </button>
+        </div>
+      </nav>
     </div>
   )
 }
@@ -1086,7 +1302,25 @@ export default function App() {
             // No claim set = first user = manager
             setRole('manager')
           }
-          setUserName(firebaseUser.displayName || firebaseUser.email || '')
+          const resolvedRole = (claimRole === 'employee' || claimRole === 'manager') ? claimRole : 'manager'
+          const displayName = firebaseUser.displayName || firebaseUser.email || ''
+          setUserName(displayName)
+
+          // Auto-create Firestore doc for first user (fixes "unauthenticated" error on createEmployee)
+          try {
+            const nameParts = displayName.split(' ')
+            await setDoc(doc(db, 'users', firebaseUser.uid), {
+              email: firebaseUser.email || '',
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' ') || '',
+              role: resolvedRole,
+              isActive: true,
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now(),
+            })
+          } catch (err) {
+            console.warn('[Spend] Could not auto-create user doc:', err)
+          }
         }
         
         setRoleLoading(false)
