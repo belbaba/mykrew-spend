@@ -532,6 +532,134 @@ function ActivityTimeline({ expenseId }: { expenseId: string }) {
   )
 }
 
+// === Install Banner (PWA) =========================================================
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+function InstallBanner() {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [showIOSGuide, setShowIOSGuide] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isAndroid = /Android/.test(navigator.userAgent)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+
+  useEffect(() => {
+    if (isStandalone || localStorage.getItem('install-dismissed')) return
+    const handler = (e: Event) => { e.preventDefault(); setDeferredPrompt(e as BeforeInstallPromptEvent) }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [isStandalone])
+
+  if (isStandalone || dismissed || localStorage.getItem('install-dismissed')) return null
+  if (!deferredPrompt && !isIOS && !isAndroid) return null
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      await deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      if (outcome === 'accepted') setDeferredPrompt(null)
+    }
+  }
+
+  const handleDismiss = () => { setDismissed(true); localStorage.setItem('install-dismissed', 'true') }
+
+  return (
+    <>
+
+      {/* Bandeau Android/Desktop (Chrome) */}
+      {deferredPrompt && (
+        <div className="fixed bottom-16 left-4 right-4 z-40 max-w-lg mx-auto">
+          <div className="rounded-2xl p-4 border border-indigo-100 shadow-xl bg-white">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-gray-900 font-medium text-sm">Installer MyKrew Spend</p>
+                <p className="text-gray-500 text-xs mt-0.5">Accedez a l'app directement depuis votre ecran d'accueil</p>
+              </div>
+              <button onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 p-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <button onClick={handleInstall} className="w-full mt-3 bg-indigo-500 text-white py-2.5 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20 hover:bg-indigo-600">Installer</button>
+          </div>
+        </div>
+      )}
+
+      {/* Bandeau iOS */}
+      {isIOS && !deferredPrompt && (
+        <div className="fixed bottom-16 left-4 right-4 z-40 max-w-lg mx-auto">
+          <div className="rounded-2xl p-4 border border-indigo-100 shadow-xl bg-white">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-gray-900 font-medium text-sm">Installer MyKrew Spend</p>
+                <p className="text-gray-500 text-xs mt-0.5">Pour un acces rapide depuis votre iPhone</p>
+              </div>
+              <button onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 p-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            {!showIOSGuide ? (
+              <button onClick={() => setShowIOSGuide(true)} className="w-full mt-3 bg-indigo-500 text-white py-2.5 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20 hover:bg-indigo-600">Comment installer sur iPhone ?</button>
+            ) : (
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">1</span><span>Ouvrez cette page dans <strong className="text-gray-900">Safari</strong></span></div>
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">2</span><span>Appuyez sur <strong className="text-gray-900">Partager</strong> (icone ↑) en bas de l'ecran</span></div>
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">3</span><span>Appuyez sur <strong className="text-gray-900">"Sur l'ecran d'accueil"</strong></span></div>
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">4</span><span>Appuyez sur <strong className="text-gray-900">Ajouter</strong> en haut a droite</span></div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bandeau Android (quand beforeinstallprompt n'est pas disponible) */}
+      {isAndroid && !deferredPrompt && !isIOS && (
+        <div className="fixed bottom-16 left-4 right-4 z-40 max-w-lg mx-auto">
+          <div className="rounded-2xl p-4 border border-indigo-100 shadow-xl bg-white">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-gray-900 font-medium text-sm">Installer MyKrew Spend</p>
+                <p className="text-gray-500 text-xs mt-0.5">Pour un acces rapide depuis votre Android</p>
+              </div>
+              <button onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 p-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            {!showIOSGuide ? (
+              <button onClick={() => setShowIOSGuide(true)} className="w-full mt-3 bg-indigo-500 text-white py-2.5 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20 hover:bg-indigo-600">Comment installer sur Android ?</button>
+            ) : (
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">1</span><span>Ouvrez cette page dans <strong className="text-gray-900">Chrome</strong></span></div>
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">2</span><span>Appuyez sur le menu <strong className="text-gray-900">⋮</strong> (3 points) en haut a droite</span></div>
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">3</span><span>Appuyez sur <strong className="text-gray-900">"Ajouter a l'ecran d'accueil"</strong></span></div>
+                <div className="flex items-center gap-2 text-gray-600"><span className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">4</span><span>Appuyez sur <strong className="text-gray-900">Installer</strong></span></div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // === Settings Page ================================================================
 function SettingsPage({ userName, userEmail, onBack }: { userName: string; userEmail: string; onBack: () => void }) {
   const [newPassword, setNewPassword] = useState('')
@@ -787,6 +915,7 @@ function EmployeeView({ userId, userName, onLogout }: { userId: string; userName
   return (
     <div className="min-h-screen pb-20">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
+      <InstallBanner />
       <div className="px-4 pt-6 pb-4 bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <button onClick={() => { setShowForm(false); setShowStats(false) }} className="flex items-center gap-2"><img src="/logo.png" alt="MyKrew" className="h-14" /><h1 className="text-xl font-bold text-indigo-500">Spend</h1></button>
@@ -1079,6 +1208,7 @@ function ManagerView({ userId, userName, onLogout }: { userId: string; userName:
   return (
     <div className="min-h-screen pb-20">
       {photoUrl && <PhotoModal url={photoUrl} onClose={() => setPhotoUrl(null)} />}
+      <InstallBanner />
       
       {/* Header */}
       <div className="px-4 pt-6 pb-4 bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-10">
