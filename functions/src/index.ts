@@ -303,7 +303,7 @@ export const onExpenseCreated = onDocumentCreated(
     await logActivity('expense_created', {
       expenseId,
       employeeId: expense.employeeId,
-      amount: expense.amount,
+      amount: expense.amountTTC || expense.amount,
       category: expense.category,
     }, expense.employeeId)
 
@@ -317,11 +317,12 @@ export const onExpenseCreated = onDocumentCreated(
       const expenseDate = expense.date?.toDate
         ? expense.date.toDate().toLocaleDateString('fr-FR')
         : new Date().toLocaleDateString('fr-FR')
+      const displayAmount = (expense.amountTTC || expense.amount || 0).toFixed(2)
 
       const body = `
         <p style="color:#cbd5e1;"><strong style="color:#f1f5f9;">${employee.firstName} ${employee.lastName}</strong> a soumis une note de frais.</p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-          <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Montant</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;font-weight:600;">${expense.amount.toFixed(2)} EUR</td></tr>
+          <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Montant</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;font-weight:600;">${displayAmount} EUR</td></tr>
           <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Categorie</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${expense.category || 'Non categorise'}</td></tr>
           <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Date</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${expenseDate}</td></tr>
           <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Description</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${expense.description || '-'}</td></tr>
@@ -335,7 +336,7 @@ export const onExpenseCreated = onDocumentCreated(
         await getResend().emails.send({
           from: senderEmail.value(),
           to: manager.email,
-          subject: `MyKrew Spend -- Nouvelle note de frais de ${employee.firstName} ${employee.lastName} (${expense.amount.toFixed(2)} EUR)`,
+          subject: `MyKrew Spend -- Nouvelle note de frais de ${employee.firstName} ${employee.lastName} (${displayAmount} EUR)`,
           html: emailTemplate(
             'Nouvelle note de frais',
             body,
@@ -353,7 +354,7 @@ export const onExpenseCreated = onDocumentCreated(
         await sendPushNotification(
           managerDoc.id,
           'Nouvelle note de frais',
-          `${employee.firstName} ${employee.lastName} - ${expense.amount?.toFixed(2) || expense.amountTTC?.toFixed(2) || '?'} EUR`
+          `${employee.firstName} ${employee.lastName} - ${displayAmount} EUR`
         )
       }
     } catch (error) {
@@ -381,7 +382,7 @@ export const onExpenseUpdated = onDocumentUpdated(
       expenseId: event.params.expenseId,
       employeeId: after.employeeId,
       decision: after.status,
-      amount: after.amount,
+      amount: after.amountTTC || after.amount,
     })
 
     try {
@@ -390,13 +391,14 @@ export const onExpenseUpdated = onDocumentUpdated(
 
       const employee = employeeDoc.data()!
       if (!employee.email) return
+      const displayAmount = (after.amountTTC || after.amount || 0).toFixed(2)
 
       if (after.status === 'approved') {
         // Email a l employe : depense approuvee
         const approvedBody = `
           <p style="color:#cbd5e1;">Votre note de frais a ete <strong style="color:#4ade80;">approuvee</strong>.</p>
           <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-            <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Montant</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;font-weight:600;">${after.amount.toFixed(2)} EUR</td></tr>
+            <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Montant</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;font-weight:600;">${displayAmount} EUR</td></tr>
             <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Categorie</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${after.category || '-'}</td></tr>
             <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Statut</td><td style="padding:8px 12px;border:1px solid #363858;color:#4ade80;font-weight:600;">Approuvee</td></tr>
           </table>
@@ -405,7 +407,7 @@ export const onExpenseUpdated = onDocumentUpdated(
         await getResend().emails.send({
           from: senderEmail.value(),
           to: employee.email,
-          subject: `MyKrew Spend -- Votre note de frais de ${after.amount?.toFixed(2) || after.amountTTC?.toFixed(2) || '?'} EUR a ete approuvee`,
+          subject: `MyKrew Spend -- Votre note de frais de ${displayAmount} EUR a ete approuvee`,
           html: emailTemplate('Note de frais approuvee', approvedBody, appUrl.value(), 'Ouvrir MyKrew Spend'),
         })
         await incrementEmailCounter()
