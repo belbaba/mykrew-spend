@@ -898,7 +898,7 @@ function EmployeeView({ userId, userName, onLogout }: { userId: string; userName
     for (let i = 5; i >= 0; i--) {
       const d = new Date(); d.setMonth(d.getMonth() - i)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const total = expenses.filter(e => { const ed = e.date instanceof Date ? e.date : new Date(); return `${ed.getFullYear()}-${String(ed.getMonth() + 1).padStart(2, '0')}` === key }).reduce((s, e) => s + e.amountTTC, 0)
+      const total = expenses.filter(e => e.status === 'approved').filter(e => { const ed = e.date instanceof Date ? e.date : new Date(); return `${ed.getFullYear()}-${String(ed.getMonth() + 1).padStart(2, '0')}` === key }).reduce((s, e) => s + e.amountTTC, 0)
       stats.push({ month: d.toLocaleDateString('fr-FR', { month: 'short' }), total })
     }
     return stats
@@ -931,7 +931,7 @@ function EmployeeView({ userId, userName, onLogout }: { userId: string; userName
 
       <div className="px-4 mb-4 grid grid-cols-2 gap-3">
         <div className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm"><p className="text-xs text-gray-400">En attente</p><p className="text-lg font-bold text-[#fbbf24]">{expenses.filter(e => e.status === 'pending').reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR</p></div>
-        <div className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm"><p className="text-xs text-gray-400">Ce mois</p><p className="text-lg font-bold text-gray-900">{expenses.filter(e => { const d = e.date instanceof Date ? e.date : new Date(); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() }).reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR</p></div>
+        <div className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm"><p className="text-xs text-gray-400">Approuve</p><p className="text-lg font-bold text-gray-900">{expenses.filter(e => e.status === 'approved').reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR</p></div>
       </div>
 
       {showStats ? (
@@ -951,11 +951,11 @@ function EmployeeView({ userId, userName, onLogout }: { userId: string; userName
             </div>
           </div>
           <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
-            <p className="text-sm text-gray-500 mb-2">Par categorie (total)</p>
+            <p className="text-sm text-gray-500 mb-2">Par categorie (approuve)</p>
             {Object.keys(CATEGORY_LABELS).map(cat => {
-              const total = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amountTTC, 0)
+              const total = expenses.filter(e => e.status === 'approved' && e.category === cat).reduce((s, e) => s + e.amountTTC, 0)
               if (total === 0) return null
-              const maxCat = Math.max(...Object.keys(CATEGORY_LABELS).map(c => expenses.filter(e => e.category === c).reduce((s, e) => s + e.amountTTC, 0)), 1)
+              const maxCat = Math.max(...Object.keys(CATEGORY_LABELS).map(c => expenses.filter(e => e.status === 'approved' && e.category === c).reduce((s, e) => s + e.amountTTC, 0)), 1)
               return (<div key={cat} className="flex items-center gap-2 mb-1">
                 <span className="text-xs w-20 truncate">{CATEGORY_ICONS[cat as ExpenseCategory]} {CATEGORY_LABELS[cat as ExpenseCategory]}</span>
                 <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(total / maxCat) * 100}%` }} /></div>
