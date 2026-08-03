@@ -51,15 +51,16 @@ function PhotoModal({ url, onClose }: { url: string; onClose: () => void }) {
 // === PDF Export Helper ============================================================
 function generatePDF(expenses: Expense[], title: string, filterMonth: string) {
   const month = filterMonth || new Date().toISOString().slice(0, 7)
-  const totalTTC = expenses.reduce((s, e) => s + e.amountTTC, 0)
-  const totalHT = expenses.reduce((s, e) => s + (e.amountHT || 0), 0)
-  const totalVAT = expenses.reduce((s, e) => s + (e.vatAmount || 0), 0)
+  const approvedExpenses = expenses.filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status))
+  const totalTTC = approvedExpenses.reduce((s, e) => s + e.amountTTC, 0)
+  const totalHT = approvedExpenses.reduce((s, e) => s + (e.amountHT || 0), 0)
+  const totalVAT = approvedExpenses.reduce((s, e) => s + (e.vatAmount || 0), 0)
 
   const byCategory = Object.keys(CATEGORY_LABELS).map(cat => ({
     category: cat as ExpenseCategory,
     label: CATEGORY_LABELS[cat as ExpenseCategory],
-    total: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amountTTC, 0),
-    count: expenses.filter(e => e.category === cat).length,
+    total: approvedExpenses.filter(e => e.category === cat).reduce((s, e) => s + e.amountTTC, 0),
+    count: approvedExpenses.filter(e => e.category === cat).length,
   })).filter(c => c.total > 0)
 
   const rows = expenses.map(exp => {
@@ -90,10 +91,10 @@ function generatePDF(expenses: Expense[], title: string, filterMonth: string) {
     .summary{display:flex;gap:24px;margin:16px 0;} .summary-item{background:#f8f9fa;padding:12px 16px;border-radius:8px;}
     .summary-item strong{display:block;font-size:18px;color:#7c3aed;}</style></head>
     <body><h1>MyKrew Spend</h1><p style="color:#666;">Recapitulatif des notes de frais — ${month}</p>
-    <div class="summary"><div class="summary-item"><span>Total TTC</span><strong>${totalTTC.toFixed(2)} EUR</strong></div>
+    <div class="summary"><div class="summary-item"><span>Total TTC (approuve)</span><strong>${totalTTC.toFixed(2)} EUR</strong></div>
     <div class="summary-item"><span>Total HT</span><strong>${totalHT.toFixed(2)} EUR</strong></div>
     <div class="summary-item"><span>TVA</span><strong>${totalVAT.toFixed(2)} EUR</strong></div>
-    <div class="summary-item"><span>Nombre</span><strong>${expenses.length}</strong></div></div>
+    <div class="summary-item"><span>Approuvees</span><strong>${approvedExpenses.length} / ${expenses.length}</strong></div></div>
     <h3>Par categorie</h3><table><tr><th>Categorie</th><th>Nombre</th><th>Total</th></tr>${categoryRows}</table>
     <h3>Detail des depenses</h3><table><tr><th>Date</th><th>Employe</th><th>Categorie</th><th>Lieu</th><th>Description</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th></tr>${rows}</table>
     <p style="color:#999;font-size:10px;margin-top:24px;">Genere par MyKrew Spend le ${new Date().toLocaleDateString('fr-FR')}</p></body></html>`
@@ -1274,7 +1275,7 @@ function ManagerView({ userId, userName, onLogout }: { userId: string; userName:
               <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-200 text-xs focus:border-indigo-500 focus:outline-none" />
             </div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-400">{filteredExpenses.length} depense(s) • {filteredExpenses.reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR</p>
+              <p className="text-xs text-gray-400">{filteredExpenses.filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status)).length} approuvee(s) • {filteredExpenses.filter(e => ['approved', 'reimbursed', 'self_approved'].includes(e.status)).reduce((s, e) => s + e.amountTTC, 0).toFixed(2)} EUR</p>
               <div className="flex gap-2">
                 <button onClick={exportCSV} className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 border border-indigo-300 hover:bg-indigo-50">📥 CSV</button>
                 <button onClick={() => generatePDF(filteredExpenses, 'Recapitulatif', filterMonth)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 border border-indigo-300 hover:bg-indigo-50">📄 PDF</button>
