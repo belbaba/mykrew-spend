@@ -326,6 +326,7 @@ export const onExpenseCreated = onDocumentCreated(
           <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Categorie</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${expense.category || 'Non categorise'}</td></tr>
           <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Date</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${expenseDate}</td></tr>
           <tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Description</td><td style="padding:8px 12px;border:1px solid #363858;color:#f1f5f9;">${expense.description || '-'}</td></tr>
+          ${expense.receiptUrl ? `<tr><td style="padding:8px 12px;border:1px solid #363858;color:#94a3b8;">Justificatif</td><td style="padding:8px 12px;border:1px solid #363858;"><a href="${expense.receiptUrl}" style="color:#a78bfa;text-decoration:underline;">Voir le justificatif</a></td></tr>` : ''}
         </table>
       `
 

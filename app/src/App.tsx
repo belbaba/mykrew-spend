@@ -809,6 +809,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!amountTTC || !location || !description) { setError('Champs obligatoires manquants'); return }
+    if (photos.length === 0) { setError('Justificatif obligatoire'); return }
     setError(''); setSubmitting(true)
     try {
       const ttc = parseFloat(amountTTC)
