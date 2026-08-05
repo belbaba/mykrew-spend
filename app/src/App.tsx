@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, updatePassword, User } from 'firebase/auth'
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, updatePassword, sendPasswordResetEmail, User } from 'firebase/auth'
 import { collection, onSnapshot, orderBy, query, where, addDoc, updateDoc, doc, getDoc, getDocs, setDoc, Timestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -725,6 +725,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true)
@@ -734,6 +735,12 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
       else if (err.code === 'auth/too-many-requests') setError('Trop de tentatives. Reessayez plus tard.')
       else setError('Erreur de connexion')
     } finally { setLoading(false) }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!email) { setError('Entrez votre email pour reinitialiser le mot de passe'); return }
+    try { await sendPasswordResetEmail(auth, email); setResetSent(true); setError('') }
+    catch { setError('Impossible d\'envoyer l\'email de reinitialisation') }
   }
 
   return (
@@ -748,8 +755,10 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
           <div><label className="block text-sm text-gray-400 mb-1">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-indigo-500 focus:outline-none" placeholder="votre@email.com" required autoComplete="email" /></div>
           <div><label className="block text-sm text-gray-400 mb-1">Mot de passe</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-200 focus:border-indigo-500 focus:outline-none" placeholder="••••••••" required autoComplete="current-password" /></div>
           {error && <p className="text-red-400 text-sm text-center bg-red-400/10 rounded-lg py-2">{error}</p>}
+          {resetSent && <p className="text-green-500 text-sm text-center bg-green-400/10 rounded-lg py-2">Email de reinitialisation envoye !</p>}
           <button type="submit" disabled={loading} className="w-full py-3 rounded-xl text-white font-semibold disabled:opacity-50 bg-indigo-500 hover:bg-indigo-600">{loading ? 'Connexion...' : 'Se connecter'}</button>
         </form>
+        <button onClick={handleForgotPassword} className="w-full mt-3 text-sm text-gray-400 hover:text-indigo-500 transition-colors">Mot de passe oublie ?</button>
       </div>
     </div>
   )
