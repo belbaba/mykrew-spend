@@ -714,6 +714,11 @@ function SettingsPage({ userName, userEmail, onBack }: { userName: string; userE
           {success && <div className="bg-green-50 text-green-700 text-sm p-3 rounded-xl">{success}</div>}
           <button type="submit" disabled={isLoading} className="w-full bg-indigo-500 text-white py-2.5 rounded-xl font-medium disabled:opacity-50 hover:bg-indigo-600">{isLoading ? 'Modification...' : 'Modifier le mot de passe'}</button>
         </form>
+        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <h2 className="text-base font-semibold text-gray-900 mb-2">Abonnement</h2>
+          <p className="text-sm text-gray-500 mb-3">Gerez votre abonnement, moyen de paiement et factures.</p>
+          <a href="https://billing.stripe.com/p/login/4gM9AVgIE1WT0BG6rq5os00j" target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-gray-100 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition-colors">Gerer mon abonnement</a>
+        </div>
       </div>
     </div>
   )
