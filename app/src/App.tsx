@@ -821,24 +821,25 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel, 
       if (project.trim()) expenseData.project = project.trim()
       if (isManager) { expenseData.approvedAt = Timestamp.now(); expenseData.approvedBy = employeeId }
 
-      const docRef = await addDoc(collection(db, 'expenses'), expenseData)
-
-      // Upload multiple photos
+      // Upload les fichiers AVANT de créer le doc (pour que onExpenseCreated ait le receiptUrl)
+      const tempId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      let receipts: { url: string; path: string; name: string }[] = []
       if (photos.length > 0) {
-        const receipts: { url: string; path: string; name: string }[] = []
         for (let i = 0; i < photos.length; i++) {
           const photo = photos[i]
           const ext = photo.name.split('.').pop() || 'jpg'
-          const storagePath = `expenses/${docRef.id}/receipt_${i}.${ext}`
+          const storagePath = `expenses/${tempId}/receipt_${i}.${ext}`
           const storageRef = ref(storage, storagePath)
           await uploadBytes(storageRef, photo)
           const downloadUrl = await getDownloadURL(storageRef)
           receipts.push({ url: downloadUrl, path: storagePath, name: photo.name })
         }
-        await updateDoc(doc(db, 'expenses', docRef.id), {
-          receiptUrl: receipts[0].url, receiptPath: receipts[0].path, receipts,
-        })
+        expenseData.receiptUrl = receipts[0].url
+        expenseData.receiptPath = receipts[0].path
+        expenseData.receipts = receipts
       }
+
+      await addDoc(collection(db, 'expenses'), expenseData)
       onSubmit()
     } catch (err: any) { setError('Erreur lors de la creation') }
     finally { setSubmitting(false) }
@@ -865,7 +866,7 @@ function ExpenseForm({ employeeId, employeeName, isManager, onSubmit, onCancel, 
         {/* Multi-photo upload */}
         <div>
           <label className="block text-sm text-gray-400 mb-1">Justificatifs ({photos.length}/5)</label>
-          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="hidden" multiple />
+          <input ref={fileInputRef} type="file" accept="image/*,application/pdf" capture="environment" onChange={handlePhotoChange} className="hidden" multiple />
           <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#6366f1] hover:text-indigo-600 transition-colors">📷 {photos.length > 0 ? 'Ajouter une photo' : 'Ajouter un justificatif'}</button>
           {photoPreviews.length > 0 && (
             <div className="mt-3 flex gap-2 overflow-x-auto">{photoPreviews.map((p, i) => (
