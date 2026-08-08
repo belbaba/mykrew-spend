@@ -334,6 +334,20 @@ export const onExpenseCreated = onDocumentCreated(
         const manager = managerDoc.data()
         if (!manager.email) continue
 
+        // Préparer la pièce jointe justificatif si disponible
+        const attachments: { filename: string; content: Buffer }[] = []
+        if (expense.receiptPath) {
+          try {
+            const bucket = admin.storage().bucket()
+            const file = bucket.file(expense.receiptPath)
+            const [fileBuffer] = await file.download()
+            const ext = expense.receiptPath.split('.').pop() || 'pdf'
+            attachments.push({ filename: `justificatif.${ext}`, content: fileBuffer })
+          } catch (dlErr) {
+            console.warn(`Impossible de telecharger le justificatif pour ${expenseId}:`, dlErr)
+          }
+        }
+
         await getResend().emails.send({
           from: senderEmail.value(),
           to: manager.email,
@@ -344,6 +358,7 @@ export const onExpenseCreated = onDocumentCreated(
             `${appUrl.value()}/manager/expense/${expenseId}`,
             'Voir la depense'
           ),
+          ...(attachments.length > 0 && { attachments }),
         })
 
         console.log(`Email envoye a ${manager.email} pour la depense ${expenseId}`)
