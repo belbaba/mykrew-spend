@@ -215,7 +215,7 @@ function AddEmployeeForm({ onBack }: AddEmployeeProps) {
 }
 
 // === Team List ====================================================================
-interface TeamMember { uid: string; email: string; firstName: string; lastName: string; role: 'manager' | 'employee'; department?: string; isActive: boolean }
+interface TeamMember { uid: string; email: string; firstName: string; lastName: string; role: 'manager' | 'employee'; department?: string; isActive: boolean; isShadow?: boolean }
 
 function TeamList({ onBack, onAddEmployee, onViewEmployeeExpenses }: { onBack: () => void; onAddEmployee: () => void; onViewEmployeeExpenses: (e: TeamMember) => void }) {
   const [members, setMembers] = useState<TeamMember[]>([])
@@ -224,7 +224,7 @@ function TeamList({ onBack, onAddEmployee, onViewEmployeeExpenses }: { onBack: (
 
   useEffect(() => {
     const q = query(collection(db, 'users'), where('isActive', '==', true))
-    const unsub = onSnapshot(q, (snap) => { setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as TeamMember)).sort((a, b) => a.lastName.localeCompare(b.lastName))); setLoading(false) })
+    const unsub = onSnapshot(q, (snap) => { setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as TeamMember)).filter(m => !m.isShadow).sort((a, b) => a.lastName.localeCompare(b.lastName))); setLoading(false) })
     return () => unsub()
   }, [])
 

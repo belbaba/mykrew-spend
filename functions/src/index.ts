@@ -1034,7 +1034,7 @@ export const billingInfo = onRequest({ region: 'europe-west1', cors: true }, asy
     const now = new Date()
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-    // Utilisateurs actifs (employés uniquement pour la facturation)
+    // Utilisateurs actifs (employés uniquement pour la facturation, exclure shadow)
     const employeesSnap = await db.collection('users')
       .where('isActive', '==', true)
       .where('role', '==', 'employee')
@@ -1045,7 +1045,7 @@ export const billingInfo = onRequest({ region: 'europe-west1', cors: true }, asy
       .where('role', '==', 'manager')
       .get()
 
-    const currentCount = employeesSnap.size
+    const currentCount = employeesSnap.docs.filter(d => !d.data().isShadow).length
 
     // Récupérer le high water mark du mois
     const metricsDoc = await db.collection('billingMetrics').doc(monthKey).get()
@@ -1126,7 +1126,7 @@ export const trackEmployeePeak = onDocumentUpdated(
         .where('role', '==', 'employee')
         .get()
 
-      const currentCount = activeSnap.size
+      const currentCount = activeSnap.docs.filter(d => !d.data().isShadow).length
       const metricsRef = db.collection('billingMetrics').doc(monthKey)
       const metricsDoc = await metricsRef.get()
 
@@ -1168,7 +1168,7 @@ export const trackEmployeePeakOnCreate = onDocumentCreated(
         .where('role', '==', 'employee')
         .get()
 
-      const currentCount = activeSnap.size
+      const currentCount = activeSnap.docs.filter(d => !d.data().isShadow).length
       const metricsRef = db.collection('billingMetrics').doc(monthKey)
       const metricsDoc = await metricsRef.get()
 
