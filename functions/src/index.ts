@@ -237,9 +237,17 @@ export const createEmployee = onCall({ region: 'europe-west1' }, async (request)
 
 /**
  * Filet de sécurité : si le provisioning automatique échoue à écrire le profil
- * Firestore du tout premier utilisateur (course avec la propagation de la base
- * Firestore juste après la création du projet), ce trigger le recrée dès que le
- * compte Auth existe. Ne s'applique qu'au tout premier utilisateur du projet —
+ * Firestore du premier utilisateur ou du compte shadow (course avec la
+ * propagation de la base Firestore juste après création du projet), ce
+ * trigger le recrée dès que le compte Auth existe.
+ *
+ * Le compte shadow (shadow@mykrew.pro) a son propre chemin : créé après le
+ * manager (la collection users n'est jamais vide à ce moment), shape
+ * différent (isShadow: true). Sans ce cas particulier il n'avait aucun filet
+ * de sécurité — cause du "connexion qui revient au login" régulièrement
+ * rapporté sur le compte shadow.
+ *
+ * Pour le manager : ne s'applique qu'au tout premier utilisateur du projet —
  * createEmployee gère la création des employés suivants (et a déjà son propre
  * filet de secours), donc aucun risque de collision. Trigger v1 (les triggers
  * Auth onCreate ne sont pas encore disponibles en v2), coexiste sans problème
@@ -249,15 +257,29 @@ export const onUserCreate = functionsV1
   .region('europe-west1')
   .auth.user()
   .onCreate(async (user) => {
-    if (user.email === 'shadow@mykrew.pro') return
-
     try {
-      const existingUsers = await db.collection('users').limit(1).get()
-      if (!existingUsers.empty) return
-
       const profileRef = db.collection('users').doc(user.uid)
       const profileDoc = await profileRef.get()
       if (profileDoc.exists) return
+
+      if (user.email === 'shadow@mykrew.pro') {
+        await profileRef.set({
+          email: 'shadow@mykrew.pro',
+          firstName: 'Shadow',
+          lastName: 'Admin',
+          role: 'manager',
+          isActive: true,
+          isShadow: true,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true })
+        await admin.auth().setCustomUserClaims(user.uid, { role: 'manager' })
+        await logActivity('shadow_profile_autocreated', { uid: user.uid }, 'system')
+        return
+      }
+
+      const existingUsers = await db.collection('users').limit(1).get()
+      if (!existingUsers.empty) return
 
       const displayName = user.displayName || ''
       const firstName = displayName.split(' ')[0] || (user.email || '').split('@')[0] || ''
@@ -276,7 +298,7 @@ export const onUserCreate = functionsV1
 
       await logActivity('manager_profile_autocreated', { uid: user.uid, email: user.email }, 'system')
     } catch (err) {
-      console.error('Erreur onUserCreate (profil manager auto):', err)
+      console.error('Erreur onUserCreate (profil auto):', err)
     }
   })
 
