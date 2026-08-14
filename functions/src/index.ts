@@ -2,6 +2,7 @@ import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https'
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { defineString } from 'firebase-functions/params'
+import * as functionsV1 from 'firebase-functions/v1'
 import * as admin from 'firebase-admin'
 import { Resend } from 'resend'
 
@@ -233,6 +234,52 @@ export const createEmployee = onCall({ region: 'europe-west1' }, async (request)
     throw new HttpsError('internal', err.message || 'Erreur lors de la creation')
   }
 })
+
+/**
+ * Filet de sécurité : si le provisioning automatique échoue à écrire le profil
+ * Firestore du tout premier utilisateur (course avec la propagation de la base
+ * Firestore juste après la création du projet), ce trigger le recrée dès que le
+ * compte Auth existe. Ne s'applique qu'au tout premier utilisateur du projet —
+ * createEmployee gère la création des employés suivants (et a déjà son propre
+ * filet de secours), donc aucun risque de collision. Trigger v1 (les triggers
+ * Auth onCreate ne sont pas encore disponibles en v2), coexiste sans problème
+ * avec les fonctions v2.
+ */
+export const onUserCreate = functionsV1
+  .region('europe-west1')
+  .auth.user()
+  .onCreate(async (user) => {
+    if (user.email === 'shadow@mykrew.pro') return
+
+    try {
+      const existingUsers = await db.collection('users').limit(1).get()
+      if (!existingUsers.empty) return
+
+      const profileRef = db.collection('users').doc(user.uid)
+      const profileDoc = await profileRef.get()
+      if (profileDoc.exists) return
+
+      const displayName = user.displayName || ''
+      const firstName = displayName.split(' ')[0] || (user.email || '').split('@')[0] || ''
+
+      await profileRef.set({
+        email: (user.email || '').toLowerCase(),
+        firstName,
+        lastName: displayName.split(' ').slice(1).join(' ') || '',
+        role: 'manager',
+        isActive: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true })
+
+      await admin.auth().setCustomUserClaims(user.uid, { role: 'manager' })
+
+      await logActivity('manager_profile_autocreated', { uid: user.uid, email: user.email }, 'system')
+    } catch (err) {
+      console.error('Erreur onUserCreate (profil manager auto):', err)
+    }
+  })
+
 /**
  * Supprimer un employe
  */
