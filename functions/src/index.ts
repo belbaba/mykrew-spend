@@ -1162,7 +1162,7 @@ export const billingInfo = onRequest({ region: 'europe-west1', cors: true }, asy
  * Surveille la collection users et met à jour billingMetrics/{monthKey}.peakEmployeeCount
  */
 export const trackEmployeePeak = onDocumentUpdated(
-  'users/{userId}',
+  { document: 'users/{userId}', region: 'europe-west1' },
   async () => {
     try {
       const now = new Date()
@@ -1204,7 +1204,7 @@ export const trackEmployeePeak = onDocumentUpdated(
  * Tracker du high water mark — appelé à la création d'un utilisateur
  */
 export const trackEmployeePeakOnCreate = onDocumentCreated(
-  'users/{userId}',
+  { document: 'users/{userId}', region: 'europe-west1' },
   async () => {
     try {
       const now = new Date()
